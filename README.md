@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 音声文字起こしアプリ
 
-## Getting Started
+シンプルな音声文字起こしと議事録生成アプリです。ワンタップで音声を録音し、文字起こしと議事録を生成できます。
 
-First, run the development server:
+## 主な機能
+
+- 🎤 ワンタップで音声録音
+- 📝 録音した音声の文字起こし
+- 📋 文字起こしから議事録の自動生成
+- 💾 結果のコピーとダウンロード
+- 📱 モバイル対応（バックグラウンド録音対応）
+
+## 技術スタック
+
+- Next.js 14.1.0
+- React 18.2.0
+- TypeScript 5.3.3
+- TailwindCSS 3.3.3
+- date-fns 2.30.0
+
+## 開発環境のセットアップ
 
 ```bash
+# リポジトリのクローン
+git clone https://github.com/StudioAP/voice-transcription.git
+cd voice-transcription
+
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 使い方
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. 録音ボタンをクリックして録音を開始します
+2. 録音が終わったら停止ボタンをクリックします
+3. 自動的に文字起こしが行われます
+4. 「議事録を生成する」ボタンをクリックすると議事録が生成されます
+5. 結果をコピーまたはダウンロードして共有できます
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## LLM設定
 
-## Learn More
+このアプリはGemini APIを使用して文字起こしと議事録生成を行います。APIキーを設定するには、`.env.local`ファイルを作成し、以下の環境変数を設定してください。
 
-To learn more about Next.js, take a look at the following resources:
+```
+GEMINI_API_KEY=あなたのAPIキー
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ライセンス
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+MIT
 
-## Deploy on Vercel
+## 作者
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+StudioAP
