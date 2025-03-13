@@ -12,7 +12,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
     console.log('Geminiへの音声送信を開始:', audioBlob.type, audioBlob.size, 'bytes');
     
     // デバッグ用：現在のブラウザがサポートしている音声形式を確認
-    const supportedTypes = [];
+    const supportedTypes: string[] = [];
     ['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp3'].forEach(type => {
       if (MediaRecorder.isTypeSupported(type)) {
         supportedTypes.push(type);
@@ -43,58 +43,44 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 }
 
 /**
- * 文字起こしテキストから議事録を生成する関数
- * Gemini APIを使用して議事録を生成します
+ * 文字起こしテキストを校正する関数
+ * Gemini APIを使用して文字起こしテキストを校正します
  * 
  * @param transcription - 文字起こしテキスト
- * @returns 議事録
+ * @returns 校正済みテキスト
  */
-export async function generateMinutes(transcription: string): Promise<string> {
+export async function correctTranscription(transcription: string): Promise<string> {
   try {
-    console.log('議事録生成開始:', transcription.substring(0, 100) + '...');
+    console.log('テキスト校正開始:', transcription.substring(0, 100) + '...');
     
     const prompt = `
-      あなたは議事録作成の専門家です。
-      以下の文字起こしテキストから、構造化された議事録を作成してください。
+      あなたは文章校正の専門家です。
+      以下の文字起こしテキストを校正してください。
       
       # 文字起こしテキスト:
       ${transcription}
       
-      # 出力形式:
-      以下の形式で議事録を作成してください：
+      # 指示:
+      以下の点に注意して校正してください：
+      1. 誤字脱字の修正
+      2. 句読点の適切な配置
+      3. 文法的な誤りの修正
+      4. 文章の自然な流れの改善
+      5. 話し言葉から書き言葉への適切な変換
       
-      # 会議議事録
-      
-      ## 日時
-      ${new Date().toLocaleDateString('ja-JP')}
-      
-      ## 参加者
-      [文字起こしから推測される参加者のリスト]
-      
-      ## 議題
-      [文字起こしから特定された主要な議題のリスト]
-      
-      ## 議事内容
-      [各議題についての詳細な議論内容]
-      
-      ## 決定事項
-      [会議で決定された事項のリスト]
-      
-      ## アクションアイテム
-      [次回までに実行すべきタスクとその担当者]
-      
-      以上
+      校正したテキストのみを出力してください。元のテキストの意味を変えないように注意してください。
+      コメントや説明は不要です。校正済みテキストのみを返してください。
     `;
     
-    const minutes = await generateText(prompt);
-    console.log('議事録生成完了:', minutes.substring(0, 100) + '...');
-    return minutes.trim();
+    const correctedText = await generateText(prompt);
+    console.log('テキスト校正完了:', correctedText.substring(0, 100) + '...');
+    return correctedText.trim();
   } catch (error) {
-    console.error('議事録生成中にエラーが発生しました:', error);
+    console.error('テキスト校正中にエラーが発生しました:', error);
     if (error instanceof Error) {
       console.error('エラーメッセージ:', error.message);
     }
-    throw new Error('議事録の生成に失敗しました');
+    throw new Error('テキストの校正に失敗しました');
   }
 }
 

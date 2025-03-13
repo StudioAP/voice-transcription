@@ -38,10 +38,10 @@ export const getGeminiModel = () => {
     model: MODEL_NAME,
     safetySettings,
     generationConfig: {
-      temperature: 0.4,
+      temperature: 0.1,
       topK: 32,
       topP: 0.95,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
     }
   });
 };

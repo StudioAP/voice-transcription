@@ -5,14 +5,14 @@ import { InfoIcon, BrainCircuit, AlertCircle } from 'lucide-react'
 import AudioRecorder from '@/components/recorder/AudioRecorder'
 import TranscriptionResult from '@/components/ui/TranscriptionResult'
 import AudioPlayer from '@/components/ui/AudioPlayer'
-import { transcribeAudio, generateMinutes } from '@/lib/llm'
+import { transcribeAudio, correctTranscription } from '@/lib/llm'
 
 export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [transcription, setTranscription] = useState<string>('')
-  const [minutes, setMinutes] = useState<string>('')
+  const [correctedText, setCorrectedText] = useState<string>('')
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [isGeneratingMinutes, setIsGeneratingMinutes] = useState(false)
+  const [isCorrectingText, setIsCorrectingText] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // 録音完了時の処理
@@ -25,34 +25,31 @@ export default function Home() {
     // 文字起こし処理を開始
     setIsTranscribing(true)
     setTranscription('') // 結果をリセット
+    setCorrectedText('') // 校正結果もリセット
     try {
       const text = await transcribeAudio(audioBlob)
       setTranscription(text)
+      
+      // 文字起こしが完了したら、自動的に校正処理を実行
+      if (text) {
+        setIsCorrectingText(true)
+        try {
+          const corrected = await correctTranscription(text)
+          setCorrectedText(corrected)
+        } catch (error) {
+          console.error('テキスト校正に失敗しました:', error)
+          const errorMsg = error instanceof Error ? error.message : 'テキスト校正に失敗しました'
+          setErrorMessage(errorMsg)
+        } finally {
+          setIsCorrectingText(false)
+        }
+      }
     } catch (error) {
       console.error('文字起こしに失敗しました:', error)
       const errorMsg = error instanceof Error ? error.message : '文字起こしに失敗しました'
       setErrorMessage(errorMsg)
     } finally {
       setIsTranscribing(false)
-    }
-  }
-  
-  // 議事録生成の処理
-  const handleGenerateMinutes = async () => {
-    if (!transcription) return
-    setErrorMessage(null)
-    
-    setIsGeneratingMinutes(true)
-    setMinutes('') // 結果をリセット
-    try {
-      const minutesText = await generateMinutes(transcription)
-      setMinutes(minutesText)
-    } catch (error) {
-      console.error('議事録生成に失敗しました:', error)
-      const errorMsg = error instanceof Error ? error.message : '議事録の生成に失敗しました'
-      setErrorMessage(errorMsg)
-    } finally {
-      setIsGeneratingMinutes(false)
     }
   }
 
@@ -62,7 +59,7 @@ export default function Home() {
         {/* ヘッダー */}
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2">音声文字起こしアプリ</h1>
-          <p className="text-gray-600">ワンタップで録音し、文字起こしと議事録を作成</p>
+          <p className="text-gray-600">ワンタップで録音し、文字起こしと校正を行います</p>
           <div className="flex items-center justify-center mt-2 text-xs text-blue-600">
             <BrainCircuit className="w-4 h-4 mr-1" />
             <span>Powered by Gemini API</span>
@@ -81,7 +78,7 @@ export default function Home() {
                   <li>下の録音ボタンをタップして録音を開始します</li>
                   <li>録音が終わったら停止ボタンをタップします</li>
                   <li>自動的に文字起こしが行われます</li>
-                  <li>必要に応じて議事録を生成できます</li>
+                  <li>必要に応じてテキストを校正できます</li>
                   <li>結果をコピー、ダウンロード、または共有できます</li>
                 </ol>
               </div>
@@ -127,12 +124,11 @@ export default function Home() {
             </div>
           )}
           
-          {/* 文字起こしと議事録の結果 */}
+          {/* 文字起こしと校正テキストの結果 */}
           <TranscriptionResult
             transcription={transcription}
-            minutes={minutes}
-            isLoading={isGeneratingMinutes}
-            onGenerateMinutes={handleGenerateMinutes}
+            minutes={correctedText}
+            isLoading={isCorrectingText}
           />
         </div>
       </div>
