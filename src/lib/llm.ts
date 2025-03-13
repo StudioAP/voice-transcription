@@ -9,26 +9,60 @@ import { generateText, getGeminiModel, transcribeAudioWithGemini } from './gemin
  */
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {
+    console.log('文字起こし処理開始 - 環境情報:', {
+      env: process.env.NODE_ENV,
+      isClient: typeof window !== 'undefined',
+      isServer: typeof window === 'undefined'
+    });
+    
     console.log('Geminiへの音声送信を開始:', audioBlob.type, audioBlob.size, 'bytes');
+    
+    // 音声形式の検証
+    if (!audioBlob.type || audioBlob.size === 0) {
+      console.error('無効な音声データです:', { type: audioBlob.type, size: audioBlob.size });
+      throw new Error('無効な音声データ形式です。録音を再試行してください。');
+    }
     
     // デバッグ用：現在のブラウザがサポートしている音声形式を確認
     const supportedTypes: string[] = [];
-    ['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp3'].forEach(type => {
-      if (MediaRecorder.isTypeSupported(type)) {
-        supportedTypes.push(type);
-      }
-    });
-    console.log('ブラウザがサポートする音声形式:', supportedTypes);
+    try {
+      ['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp3'].forEach(type => {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
+          supportedTypes.push(type);
+        }
+      });
+      console.log('ブラウザがサポートする音声形式:', supportedTypes);
+    } catch (err) {
+      console.warn('MediaRecorder APIにアクセスできません:', err);
+    }
     
     // 音声ファイルをbase64に変換
-    const base64Audio = await blobToBase64(audioBlob);
-    console.log('Base64変換完了: データ長', base64Audio.length);
-    
-    // Gemini APIを使用して文字起こしを実行
-    const transcription = await transcribeAudioWithGemini(base64Audio, audioBlob.type);
-    console.log('文字起こし完了:', transcription.substring(0, 100) + '...');
-    
-    return transcription.trim();
+    try {
+      const base64Audio = await blobToBase64(audioBlob);
+      console.log('Base64変換完了: データ長', base64Audio.length);
+      
+      if (!base64Audio || base64Audio.length === 0) {
+        throw new Error('音声データのBase64変換に失敗しました');
+      }
+      
+      // Gemini APIで対応している形式かチェック
+      const supportedMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
+      const mimeType = audioBlob.type;
+      console.log(`音声フォーマット: ${mimeType}, サポート状況: ${supportedMimeTypes.includes(mimeType)}`);
+      
+      // Gemini APIを使用して文字起こしを実行
+      const transcription = await transcribeAudioWithGemini(base64Audio, mimeType);
+      console.log('文字起こし完了:', transcription ? transcription.substring(0, 100) + '...' : '結果なし');
+      
+      if (!transcription || transcription.trim().length === 0) {
+        throw new Error('文字起こし結果が空です。音声認識に失敗しました。');
+      }
+      
+      return transcription.trim();
+    } catch (convError) {
+      console.error('音声データ処理中にエラーが発生しました:', convError);
+      throw convError;
+    }
   } catch (error) {
     console.error('文字起こし処理中にエラーが発生しました:', error);
     // エラーの詳細をログに出力
@@ -38,7 +72,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
       console.error('エラースタック:', error.stack);
     }
     
-    throw new Error('文字起こしに失敗しました');
+    throw new Error('文字起こしに失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
   }
 }
 
@@ -51,6 +85,10 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
  */
 export async function correctTranscription(transcription: string): Promise<string> {
   try {
+    if (!transcription || transcription.trim().length === 0) {
+      throw new Error('校正するテキストが空です');
+    }
+    
     console.log('テキスト校正開始:', transcription.substring(0, 100) + '...');
     
     const prompt = `
@@ -74,13 +112,20 @@ export async function correctTranscription(transcription: string): Promise<strin
     
     const correctedText = await generateText(prompt);
     console.log('テキスト校正完了:', correctedText.substring(0, 100) + '...');
+    
+    if (!correctedText || correctedText.trim().length === 0) {
+      throw new Error('校正結果が空です');
+    }
+    
     return correctedText.trim();
   } catch (error) {
     console.error('テキスト校正中にエラーが発生しました:', error);
     if (error instanceof Error) {
       console.error('エラーメッセージ:', error.message);
+      console.error('エラータイプ:', error.name);
+      console.error('エラースタック:', error.stack);
     }
-    throw new Error('テキストの校正に失敗しました');
+    throw new Error('テキストの校正に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
   }
 }
 
@@ -93,14 +138,24 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      } else {
-        reject(new Error('Base64変換に失敗しました'));
+      try {
+        if (typeof reader.result === 'string') {
+          const base64 = reader.result.split(',')[1];
+          if (!base64) {
+            reject(new Error('Base64変換結果が不正です'));
+            return;
+          }
+          resolve(base64);
+        } else {
+          reject(new Error('FileReader結果が文字列ではありません'));
+        }
+      } catch (e) {
+        reject(new Error('Base64変換処理中にエラーが発生しました: ' + e));
       }
     };
-    reader.onerror = reject;
+    reader.onerror = (e) => {
+      reject(new Error('FileReader読み込みエラー: ' + e));
+    };
     reader.readAsDataURL(blob);
   });
 } 

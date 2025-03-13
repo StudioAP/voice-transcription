@@ -1,12 +1,19 @@
 import { GoogleGenerativeAI, type HarmCategory, type HarmBlockThreshold } from '@google/generative-ai';
 
+// 環境変数のデバッグ出力
+console.log('環境変数情報:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_GEMINI_API_KEY_EXISTS: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+  NEXT_PUBLIC_GEMINI_MODEL: process.env.NEXT_PUBLIC_GEMINI_MODEL
+});
+
 // APIキーと使用するモデルを環境変数から取得
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const MODEL_NAME = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
 
 // APIキーが設定されていない場合はエラーメッセージを表示
 if (!API_KEY) {
-  console.error('Gemini APIキーが設定されていません。.env.localファイルを確認してください。');
+  console.error('Gemini APIキーが設定されていません。Render環境変数またはプロジェクトの.env.localファイルを確認してください。');
 }
 
 // セーフティー設定
@@ -34,6 +41,13 @@ export const genAI = new GoogleGenerativeAI(API_KEY);
 
 // モデルの取得
 export const getGeminiModel = () => {
+  // APIキーのデバッグチェック
+  if (!API_KEY) {
+    console.error('API_KEYが設定されていません。有効なAPIキーが必要です。');
+  }
+  
+  console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY });
+  
   return genAI.getGenerativeModel({ 
     model: MODEL_NAME,
     safetySettings,
@@ -54,6 +68,13 @@ export const getGeminiModel = () => {
  */
 export async function transcribeAudioWithGemini(audioData: string, mimeType: string): Promise<string> {
   try {
+    console.log('音声認識開始:', { mimeType, dataLength: audioData.length });
+    
+    // APIキーが空の場合は早期にエラーをスロー
+    if (!API_KEY) {
+      throw new Error('Gemini APIキーが設定されていません。文字起こしを実行できません。');
+    }
+    
     const model = getGeminiModel();
     const result = await model.generateContent({
       contents: [{
@@ -72,6 +93,12 @@ export async function transcribeAudioWithGemini(audioData: string, mimeType: str
     return response.text();
   } catch (error) {
     console.error('Gemini APIでの音声文字起こし中にエラーが発生しました:', error);
+    // エラーの詳細情報を出力
+    if (error instanceof Error) {
+      console.error('エラータイプ:', error.name);
+      console.error('エラーメッセージ:', error.message);
+      console.error('エラースタック:', error.stack);
+    }
     throw error;
   }
 }
@@ -83,12 +110,23 @@ export async function transcribeAudioWithGemini(audioData: string, mimeType: str
  */
 export async function generateText(prompt: string): Promise<string> {
   try {
+    // APIキーが空の場合は早期にエラーをスロー
+    if (!API_KEY) {
+      throw new Error('Gemini APIキーが設定されていません。テキスト生成を実行できません。');
+    }
+    
     const model = getGeminiModel();
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
     console.error('Gemini APIでエラーが発生しました:', error);
+    // エラーの詳細情報を出力
+    if (error instanceof Error) {
+      console.error('エラータイプ:', error.name);
+      console.error('エラーメッセージ:', error.message);
+      console.error('エラースタック:', error.stack);
+    }
     throw new Error('テキスト生成中にエラーが発生しました');
   }
 } 
