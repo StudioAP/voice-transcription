@@ -23,9 +23,20 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [apiKeyError, setApiKeyError] = useState<boolean>(false)
   const [showGuide, setShowGuide] = useState<boolean>(true)
+  const [envDebug, setEnvDebug] = useState<any>(null)
   
   // API Keyのチェック - 初回レンダリング時のみ実行
   useEffect(() => {
+    // 環境変数情報をログに出力
+    const debugInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      NEXT_PUBLIC_GEMINI_API_KEY_EXISTS: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      NEXT_PUBLIC_GEMINI_MODEL: process.env.NEXT_PUBLIC_GEMINI_MODEL
+    };
+    
+    console.log('環境変数情報:', debugInfo);
+    setEnvDebug(debugInfo);
+    
     // APIキーが設定されているか確認（処理を最小限に）
     if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
       setApiKeyError(true)
@@ -104,6 +115,13 @@ export default function Home() {
           </div>
         </header>
         
+        {/* 環境変数デバッグ情報 - 開発時のみ表示 */}
+        {process.env.NODE_ENV !== 'production' && envDebug && (
+          <div className="mb-2 p-2 bg-gray-100 text-xs overflow-auto rounded">
+            <pre>{JSON.stringify(envDebug, null, 2)}</pre>
+          </div>
+        )}
+        
         {/* メインコンテンツ - より密集したレイアウト */}
         <div className="space-y-2">
           {/* コンパクト化したエラー表示 */}
@@ -133,9 +151,9 @@ export default function Home() {
               </button>
               <div className="flex items-start gap-1">
                 <InfoIcon className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div className="text-xxs text-blue-700">
+                <div className="text-[10px] leading-tight text-blue-700">
                   <span className="text-xs font-semibold block mb-0.5">使い方</span>
-                  <ol className="list-decimal pl-3 space-y-0 leading-tight">
+                  <ol className="list-decimal pl-3 space-y-0">
                     <li>画面下部の録音ボタンをタップ</li>
                     <li>停止ボタンで終了</li>
                     <li>結果を同時表示</li>

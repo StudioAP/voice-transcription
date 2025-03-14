@@ -49,21 +49,10 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
-  /* 超小さいテキスト用クラス */
-  .text-xxs {
-    font-size: 0.65rem;
-    line-height: 1.1;
-  }
 }
 
-/* モバイル最適化のためのメディアクエリ */
+/* テキストエリアの高さをモバイル向けに最適化 */
 @media (max-width: 640px) {
-  .text-xxs {
-    font-size: 0.6rem;
-  }
-  
-  /* テキストエリアの高さをモバイル向けに最適化 */
   textarea {
     line-height: 1.3;
   }
