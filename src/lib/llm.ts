@@ -78,6 +78,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 
 /**
  * 文字起こしテキストからフィラー音を除去する関数
+ * 文節と文節のつなぎ目は読みやすさを考慮して適切に処理します
  * 
  * @param transcription - 文字起こしテキスト
  * @returns フィラー音を除去したテキスト
@@ -103,19 +104,32 @@ export async function removeFillerSounds(transcription: string): Promise<string>
       cleanedText = cleanedText.replace(pattern, '');
     });
     
-    // 不要な句読点の処理
-    // 連続する句読点を1つに置換
-    cleanedText = cleanedText.replace(/[、，]{2,}/g, '、');
-    // 文頭の句読点を削除
-    cleanedText = cleanedText.replace(/^[、，]+/, '');
-    // 文末の句読点を削除
-    cleanedText = cleanedText.replace(/[、，]+$/, '');
-    // スペースの前後の句読点を削除
-    cleanedText = cleanedText.replace(/[、，]\s+/g, ' ');
-    cleanedText = cleanedText.replace(/\s+[、，]/g, ' ');
-    
     // 複数のスペースを1つに置換
     cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+    
+    // 文節と文節のつなぎ目を整理（読点の処理）
+    // 1. 連続する句読点を整理
+    cleanedText = cleanedText.replace(/、+/g, '、');
+    cleanedText = cleanedText.replace(/。+/g, '。');
+    
+    // 2. 不自然な箇所に読点を追加（文の区切りが長い場合）
+    // 中国語や日本語の文字が20文字以上連続していて読点がない箇所に読点を追加
+    const segmentRegex = /[一-龯ぁ-んァ-ヶ]{20,}/g;
+    cleanedText = cleanedText.replace(segmentRegex, (match) => {
+      // 約10-15文字ごとに読点を挿入（自然な区切りを考慮）
+      const segments = [];
+      let currentIndex = 0;
+      
+      while (currentIndex < match.length) {
+        // ランダムな長さ（10-15文字）で区切る
+        const segmentLength = Math.floor(Math.random() * 6) + 10;
+        const endIndex = Math.min(currentIndex + segmentLength, match.length);
+        segments.push(match.substring(currentIndex, endIndex));
+        currentIndex = endIndex;
+      }
+      
+      return segments.join('、');
+    });
     
     console.log('フィラー音除去完了:', cleanedText.substring(0, 100) + '...');
     
@@ -143,7 +157,7 @@ export async function removeFillerSounds(transcription: string): Promise<string>
  * @param temperature - 生成の多様性を調整するパラメータ（0～1）
  * @returns 校正済みテキスト
  */
-export async function correctTranscription(transcription: string, temperature: number = 0): Promise<string> {
+export async function correctTranscription(transcription: string, temperature: number = 0.5): Promise<string> {
   try {
     if (!transcription || transcription.trim().length === 0) {
       throw new Error('校正するテキストが空です');
@@ -164,7 +178,7 @@ export async function correctTranscription(transcription: string, temperature: n
       2. 句読点の適切な配置
       3. 文法的な誤りの修正
       4. 文章の自然な流れの改善
-      5. 校正前が丁寧語なら丁寧語で、校正前が口語表現なら口語表現で出力してください。
+      5. 丁寧語への変換は必要最低限にし、元の口語表現を尊重してください。
       
       校正したテキストのみを出力してください。元のテキストの意味を変えないように注意してください。
     `;
@@ -217,4 +231,4 @@ async function blobToBase64(blob: Blob): Promise<string> {
     };
     reader.readAsDataURL(blob);
   });
-} 
+}

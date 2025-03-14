@@ -81,7 +81,7 @@ export default function Home() {
           // 並行して処理を実行
           const [fillerRemoved, corrected] = await Promise.all([
             removeFillerSounds(text),
-            correctTranscription(text, 0)
+            correctTranscription(text, 0.5)
           ])
           
           setFillerRemovedText(fillerRemoved)
