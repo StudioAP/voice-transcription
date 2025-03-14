@@ -103,6 +103,17 @@ export async function removeFillerSounds(transcription: string): Promise<string>
       cleanedText = cleanedText.replace(pattern, '');
     });
     
+    // 不要な句読点の処理
+    // 連続する句読点を1つに置換
+    cleanedText = cleanedText.replace(/[、，]{2,}/g, '、');
+    // 文頭の句読点を削除
+    cleanedText = cleanedText.replace(/^[、，]+/, '');
+    // 文末の句読点を削除
+    cleanedText = cleanedText.replace(/[、，]+$/, '');
+    // スペースの前後の句読点を削除
+    cleanedText = cleanedText.replace(/[、，]\s+/g, ' ');
+    cleanedText = cleanedText.replace(/\s+[、，]/g, ' ');
+    
     // 複数のスペースを1つに置換
     cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
     
