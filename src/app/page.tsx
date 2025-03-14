@@ -4,7 +4,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { InfoIcon, BrainCircuit, AlertCircle } from 'lucide-react'
 import AudioRecorder from '@/components/recorder/AudioRecorder'
 import TranscriptionResult from '@/components/ui/TranscriptionResult'
-import { transcribeAudio, correctTranscription, removeFillerSounds } from '@/lib/llm'
+import { transcribeAudio, correctTranscription } from '@/lib/llm'
 
 // 音声プレイヤーコンポーネントを遅延ロード
 const AudioPlayer = lazy(() => import('@/components/ui/AudioPlayer'))
@@ -16,9 +16,7 @@ const AudioPlayer = lazy(() => import('@/components/ui/AudioPlayer'))
 export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [transcription, setTranscription] = useState<string>('')
-  const [fillerRemovedText, setFillerRemovedText] = useState<string>('')
   const [correctedText, setCorrectedText] = useState<string>('')
-  const [correctedFillerRemovedText, setCorrectedFillerRemovedText] = useState<string>('')
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -62,9 +60,7 @@ export default function Home() {
     // 文字起こし処理を開始
     setIsTranscribing(true)
     setTranscription('') // 結果をリセット
-    setFillerRemovedText('') // フィラー除去テキストもリセット
     setCorrectedText('') // 校正テキストもリセット
-    setCorrectedFillerRemovedText('') // 校正＋フィラー除去テキストもリセット
     
     try {
       if (apiKeyError) {
@@ -80,23 +76,9 @@ export default function Home() {
         setIsProcessing(true)
         
         try {
-          // 並行して処理を実行
-          const [fillerRemoved, corrected] = await Promise.all([
-            removeFillerSounds(text),
-            correctTranscription(text, 0.5)
-          ])
-          
-          setFillerRemovedText(fillerRemoved)
+          // 校正処理を実行
+          const corrected = await correctTranscription(text, 0.5)
           setCorrectedText(corrected)
-          
-          // 校正テキストからもフィラー音を削除
-          try {
-            const correctedFillerRemoved = await removeFillerSounds(corrected);
-            setCorrectedFillerRemovedText(correctedFillerRemoved);
-          } catch (error) {
-            console.error('校正テキストからのフィラー音除去に失敗しました:', error);
-            setCorrectedFillerRemovedText('');
-          }
         } catch (error) {
           console.error('テキスト処理に失敗しました:', error)
           const errorMsg = error instanceof Error ? error.message : 'テキスト処理に失敗しました'
@@ -197,9 +179,7 @@ export default function Home() {
           {/* 文字起こしと処理結果 */}
           <TranscriptionResult
             transcription={transcription}
-            fillerRemovedText={fillerRemovedText}
             correctedText={correctedText}
-            correctedFillerRemovedText={correctedFillerRemovedText}
             isLoading={isTranscribing || isProcessing}
           />
         </div>
