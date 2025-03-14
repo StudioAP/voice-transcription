@@ -153,10 +153,9 @@ export async function correctTranscription(transcription: string, temperature: n
       2. 句読点の適切な配置
       3. 文法的な誤りの修正
       4. 文章の自然な流れの改善
-      5. 話し言葉から書き言葉への適切な変換
+      5. 丁寧語への変換は必要最低限にし、元の口語表現を尊重してください。
       
       校正したテキストのみを出力してください。元のテキストの意味を変えないように注意してください。
-      コメントや説明は不要です。校正済みテキストのみを返してください。
     `;
     
     const correctedText = await generateText(prompt, temperature);

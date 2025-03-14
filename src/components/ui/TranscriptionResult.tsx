@@ -128,36 +128,39 @@ export default function TranscriptionResult({
   // テキストエリアの最適化されたサイズを計算
   const getTextareaHeight = () => {
     // モバイルでは小さめに、デスクトップでは少し大きめに
-    return 'min-h-[130px] max-h-[200px]'
+    return 'min-h-[110px] max-h-[160px]'
   }
   
   // テキストカード表示
   const renderTextCard = (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
-    let title = '', icon = null
+    let title = '', icon = null, bgColor = ''
     
     switch (type) {
       case 'transcription':
         title = '文字起こし'
-        icon = <MessageSquare className="w-4 h-4 text-blue-500" />
+        icon = <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+        bgColor = 'bg-blue-50'
         break
       case 'fillerRemoved':
         title = 'フィラー除去'
-        icon = <Eraser className="w-4 h-4 text-purple-500" />
+        icon = <Eraser className="w-3.5 h-3.5 text-purple-500" />
+        bgColor = 'bg-purple-50'
         break
       case 'corrected':
         title = '校正済み'
-        icon = <Sparkles className="w-4 h-4 text-amber-500" />
+        icon = <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+        bgColor = 'bg-amber-50'
         break
     }
     
     return (
-      <div className="bg-white border rounded-lg shadow p-2 flex flex-col h-full">
+      <div className="bg-white border rounded-lg shadow-sm p-1.5 flex flex-col h-full">
         <div className="flex justify-between items-center mb-1">
-          <h3 className="text-sm font-semibold flex items-center gap-1">
+          <h3 className="text-xs font-semibold flex items-center gap-1">
             {icon}
             <span>{title}</span>
           </h3>
-          <div className="flex gap-1">
+          <div className="flex gap-0.5">
             <button
               onClick={() => handleCopy(type)}
               className="p-1 rounded hover:bg-gray-100 transition-colors"
@@ -165,9 +168,9 @@ export default function TranscriptionResult({
               title="クリップボードにコピー"
             >
               {copyStatus[type] ? (
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-3.5 h-3.5 text-green-500" />
               ) : (
-                <Copy className="w-4 h-4 text-gray-500" />
+                <Copy className="w-3.5 h-3.5 text-gray-500" />
               )}
             </button>
             <button
@@ -176,7 +179,7 @@ export default function TranscriptionResult({
               aria-label="ファイルをダウンロード"
               title="ファイルをダウンロード"
             >
-              <Download className="w-4 h-4 text-gray-500" />
+              <Download className="w-3.5 h-3.5 text-gray-500" />
             </button>
             <button
               onClick={() => handleShare(type)}
@@ -184,7 +187,7 @@ export default function TranscriptionResult({
               aria-label="外部サービスで共有"
               title="外部サービスで共有"
             >
-              <Share2 className="w-4 h-4 text-gray-500" />
+              <Share2 className="w-3.5 h-3.5 text-gray-500" />
             </button>
           </div>
         </div>
@@ -193,7 +196,7 @@ export default function TranscriptionResult({
           ref={textareaRefs[type]}
           value={editableTexts[type]}
           onChange={(e) => handleTextAreaChange(e, type)}
-          className={`flex-grow w-full ${getTextareaHeight()} border p-2 rounded text-sm bg-gray-50 whitespace-pre-wrap resize-none focus:ring-1 focus:ring-blue-300 focus:outline-none`}
+          className={`flex-grow w-full ${getTextareaHeight()} border p-1.5 rounded text-xs ${bgColor} whitespace-pre-wrap resize-none focus:ring-1 focus:ring-blue-300 focus:outline-none`}
           placeholder={`${title}結果がここに表示されます`}
         />
       </div>
@@ -201,29 +204,32 @@ export default function TranscriptionResult({
   }
   
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-1.5', className)}>
+      {/* 最初の案内 */}
+      {!hasContent && !isLoading && (
+        <div className="text-center text-gray-500 py-3 mb-20">
+          <span className="text-sm">画面下部の録音ボタンをタップしてください</span>
+        </div>
+      )}
+      
       {hasContent && !isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 pb-2">
           {renderTextCard('transcription')}
           {renderTextCard('fillerRemoved')}
           {renderTextCard('corrected')}
         </div>
       )}
       
-      {/* コンテンツがない場合またはロード中の場合 */}
-      {(!hasContent || isLoading) && (
-        <div className="text-center text-gray-500 py-4">
-          {isLoading ? (
-            <span className="flex items-center justify-center text-blue-500">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              テキスト処理中...
-            </span>
-          ) : (
-            "音声を録音すると、ここに文字起こし結果が表示されます。"
-          )}
+      {/* ロード中表示 */}
+      {isLoading && (
+        <div className="text-center text-gray-500 py-3 mb-20">
+          <span className="flex items-center justify-center text-blue-500 text-sm">
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            テキスト処理中...
+          </span>
         </div>
       )}
     </div>

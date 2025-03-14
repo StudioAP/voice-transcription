@@ -221,25 +221,26 @@ export default function AudioRecorder({
   
   return (
     <div className={cn('flex flex-col items-center', className)}>
+      {error ? (
+        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md text-red-700 flex items-center gap-1 max-w-md">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <p className="text-xs">{error}</p>
+        </div>
+      ) : null}
+      
       <div className="flex flex-col items-center">
-        {error ? (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 flex items-center gap-2 max-w-md">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm">{error}</p>
-          </div>
-        ) : null}
-        
         <button
           onClick={isRecording ? stopRecording : startRecording}
           disabled={isProcessing || !!error}
           className={cn(
-            'w-16 h-16 rounded-full flex items-center justify-center transition-all',
+            'w-18 h-18 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95',
             isRecording 
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-blue-500 hover:bg-blue-600',
             (isProcessing || !!error) && 'opacity-70 cursor-not-allowed'
           )}
           aria-label={isRecording ? '録音停止' : '録音開始'}
+          style={{ width: '3.5rem', height: '3.5rem' }} // 親指操作用に少し大きめに
         >
           {isProcessing ? (
             <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -250,9 +251,10 @@ export default function AudioRecorder({
           )}
         </button>
         
+        {/* 録音時間表示 */}
         {isRecording && (
-          <div className="mt-2 text-lg font-semibold animate-pulse text-red-500">
-            録音中... {formatTime(recordingTime)}
+          <div className="mt-1 px-2 py-0.5 bg-red-100 rounded-full text-xs text-red-600 font-medium">
+            {formatTime(recordingTime)}
           </div>
         )}
       </div>

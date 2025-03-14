@@ -94,7 +94,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col pt-2 pb-4 px-2 sm:px-4">
+    <main className="flex min-h-screen flex-col pt-2 pb-24 px-2 sm:px-4 relative">
       <div className="max-w-3xl mx-auto w-full">
         {/* ヘッダー - よりコンパクトに */}
         <header className="mb-2 text-center">
@@ -122,58 +122,48 @@ export default function Home() {
             </div>
           )}
           
-          {/* 録音と音声プレーヤーを横に並べる */}
-          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-            {/* 録音セクション - コンパクト化 */}
-            <div className="flex-shrink-0 py-2 flex flex-col items-center">
-              <AudioRecorder 
-                onRecordingComplete={handleRecordingComplete} 
-              />
-              <p className="text-xs text-gray-500 mt-1 min-h-[20px]">
-                {isTranscribing ? (
-                  <span className="flex items-center text-blue-500 text-xs">
-                    <BrainCircuit className="w-3 h-3 mr-1 animate-pulse" />
-                    文字起こし中...
-                  </span>
-                ) : (
-                  '録音ボタンをクリック'
-                )}
-              </p>
-              
-              {/* 使い方ガイド - 非常にコンパクトに */}
-              {showGuide && (
-                <div className="bg-blue-50 border border-blue-100 rounded-md p-1.5 mt-1 max-w-xs relative">
-                  <button 
-                    className="absolute top-0 right-0 text-blue-400 hover:text-blue-600 text-xs"
-                    onClick={() => setShowGuide(false)}
-                  >
-                    ✕
-                  </button>
-                  <div className="flex items-start gap-1">
-                    <InfoIcon className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div className="text-xxs text-blue-700">
-                      <span className="text-xs font-semibold block mb-0.5">使い方</span>
-                      <ol className="list-decimal pl-3 space-y-0 leading-tight">
-                        <li>録音ボタンをタップ</li>
-                        <li>停止ボタンで終了</li>
-                        <li>結果を同時表示</li>
-                      </ol>
-                    </div>
-                  </div>
+          {/* 使い方ガイド - 非常にコンパクトに */}
+          {showGuide && (
+            <div className="bg-blue-50 border border-blue-100 rounded-md p-1.5 mb-1 relative">
+              <button 
+                className="absolute top-0 right-0 text-blue-400 hover:text-blue-600 text-xs"
+                onClick={() => setShowGuide(false)}
+              >
+                ✕
+              </button>
+              <div className="flex items-start gap-1">
+                <InfoIcon className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div className="text-xxs text-blue-700">
+                  <span className="text-xs font-semibold block mb-0.5">使い方</span>
+                  <ol className="list-decimal pl-3 space-y-0 leading-tight">
+                    <li>画面下部の録音ボタンをタップ</li>
+                    <li>停止ボタンで終了</li>
+                    <li>結果を同時表示</li>
+                  </ol>
                 </div>
-              )}
-            </div>
-            
-            {/* オーディオプレイヤー - より小さく */}
-            {audioUrl && (
-              <div className="flex-grow">
-                <h2 className="text-sm font-medium mb-1">録音音声</h2>
-                <Suspense fallback={<div className="h-8 bg-gray-100 rounded animate-pulse"></div>}>
-                  <AudioPlayer audioUrl={audioUrl} />
-                </Suspense>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          
+          {/* オーディオプレイヤー - より小さく */}
+          {audioUrl && (
+            <div className="mb-2">
+              <h2 className="text-sm font-medium mb-1">録音音声</h2>
+              <Suspense fallback={<div className="h-8 bg-gray-100 rounded animate-pulse"></div>}>
+                <AudioPlayer audioUrl={audioUrl} />
+              </Suspense>
+            </div>
+          )}
+          
+          {/* 録音ステータス表示 */}
+          {isTranscribing && (
+            <div className="text-center p-1.5 bg-blue-50 border border-blue-100 rounded-md mb-2">
+              <span className="flex items-center justify-center text-blue-600 text-xs">
+                <BrainCircuit className="w-3 h-3 mr-1 animate-pulse" />
+                文字起こし処理中...
+              </span>
+            </div>
+          )}
           
           {/* 文字起こしと処理結果 */}
           <TranscriptionResult
@@ -182,6 +172,28 @@ export default function Home() {
             correctedText={correctedText}
             isLoading={isTranscribing || isProcessing}
           />
+        </div>
+      </div>
+      
+      {/* 録音ボタンを画面下部に固定 */}
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center items-center bg-white bg-opacity-90 border-t border-gray-200 py-2 px-4 shadow-lg z-10">
+        <div className="w-full max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex-1 text-xs text-center text-gray-500">
+            {isTranscribing ? (
+              <span className="text-blue-600">処理中...</span>
+            ) : transcription ? (
+              <span className="text-green-600">録音完了</span>
+            ) : (
+              <span>録音ボタンをタップ</span>
+            )}
+          </div>
+          
+          <AudioRecorder 
+            onRecordingComplete={handleRecordingComplete} 
+            className="px-6"
+          />
+          
+          <div className="flex-1"></div>
         </div>
       </div>
     </main>
