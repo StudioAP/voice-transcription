@@ -103,7 +103,7 @@ export default function Home() {
         {/* ヘッダー - よりコンパクトに */}
         <header className="mb-2 text-center">
           <div className="flex items-center justify-center gap-1">
-            <h1 className="text-xl font-bold">音声文字起こしアプリ</h1>
+            <h1 className="text-xl font-bold">しゃべりを校正くん</h1>
             <BrainCircuit className="w-4 h-4 text-blue-600" />
           </div>
         </header>

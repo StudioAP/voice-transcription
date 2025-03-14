@@ -13,6 +13,7 @@ interface AudioRecorderProps {
 /**
  * 音声録音コンポーネント
  * シンプルなワンタップ操作で録音を開始・停止できます
+ * マイク権限を保持して連続録音をサポートします
  */
 export default function AudioRecorder({
   onRecordingComplete,
@@ -23,35 +24,71 @@ export default function AudioRecorder({
   const [recordingTime, setRecordingTime] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const streamRef = useRef<MediaStream | null>(null) // マイク入力ストリームを保持
   
-  // コンポーネントマウント時に機能サポートを確認
+  // コンポーネントマウント時に機能サポートとマイク権限を確認
   useEffect(() => {
     const checkMediaSupport = async () => {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           setError('お使いのブラウザは音声録音をサポートしていません。');
+          setHasPermission(false);
           return false;
         }
         
         // MediaRecorderが利用可能か確認
         if (typeof MediaRecorder === 'undefined') {
           setError('お使いのブラウザはMediaRecorderをサポートしていません。');
+          setHasPermission(false);
           return false;
         }
         
-        return true;
+        // 最初のマウント時にマイク権限をリクエスト
+        try {
+          console.log('マイク入力の権限を事前に取得します...');
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              channelCount: 1,
+              sampleRate: 16000
+            } 
+          });
+          
+          // ストリームを保存して再利用できるようにする
+          streamRef.current = stream;
+          console.log('マイク入力の権限を取得しました。連続的な録音が可能です。');
+          setHasPermission(true);
+          return true;
+        } catch (err) {
+          console.error('マイク権限の取得に失敗しました:', err);
+          setError('マイクへのアクセス権限がありません。ブラウザの権限設定を確認してください。');
+          setHasPermission(false);
+          return false;
+        }
       } catch (err) {
         console.error('メディアサポートチェック中にエラーが発生しました:', err);
         setError('音声録音機能のチェック中にエラーが発生しました。');
+        setHasPermission(false);
         return false;
       }
     };
     
     checkMediaSupport();
+    
+    // コンポーネントのアンマウント時にストリームをクリーンアップ
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
   }, []);
   
   // 録音時間の更新
@@ -86,22 +123,33 @@ export default function AudioRecorder({
       setIsProcessing(true);
       setError(null);
       
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('お使いのブラウザは音声録音をサポートしていません。');
-      }
+      // すでにマイク権限がある場合は、既存のストリームを使用
+      let stream: MediaStream;
       
-      // 高品質な音声設定でストリームを取得
-      console.log('マイク入力の取得を開始します...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
-          sampleRate: 16000
-        } 
-      });
-      console.log('マイク入力の取得に成功しました');
+      if (streamRef.current) {
+        // 既存のストリームを再利用
+        stream = streamRef.current;
+        console.log('既存のマイクストリームを使用します');
+      } else {
+        // 新規にマイク入力を取得
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('お使いのブラウザは音声録音をサポートしていません。');
+        }
+        
+        console.log('マイク入力の取得を開始します...');
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 16000
+          } 
+        });
+        console.log('マイク入力の取得に成功しました');
+        streamRef.current = stream;
+        setHasPermission(true);
+      }
       
       // サポートされる音声形式を確認
       const mimeTypes = [
@@ -175,10 +223,10 @@ export default function AudioRecorder({
           console.error('録音処理中にエラーが発生しました:', err);
           setError(err instanceof Error ? err.message : '録音の処理中にエラーが発生しました');
         } finally {
-          // ストリームの全トラックを停止
-          stream.getTracks().forEach(track => track.stop());
+          // 処理フラグをリセット
           setIsProcessing(false);
           setRecordingTime(0);
+          // ストリームは終了せず保持（連続録音のため）
         }
       };
       
@@ -191,6 +239,12 @@ export default function AudioRecorder({
       console.error('録音の開始に失敗しました:', err);
       setIsProcessing(false);
       setError(err instanceof Error ? err.message : '録音の開始に失敗しました');
+      
+      // エラーがマイク権限に関するものであれば、ユーザーに案内
+      if (err instanceof Error && err.message.includes('permission')) {
+        setError('マイクへのアクセス権限がありません。ブラウザの設定で権限を許可してください。');
+        setHasPermission(false);
+      }
     }
   };
   
@@ -231,13 +285,13 @@ export default function AudioRecorder({
       <div className="flex flex-col items-center">
         <button
           onClick={isRecording ? stopRecording : startRecording}
-          disabled={isProcessing || !!error}
+          disabled={isProcessing || (hasPermission === false)}
           className={cn(
             'w-18 h-18 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95',
             isRecording 
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-blue-500 hover:bg-blue-600',
-            (isProcessing || !!error) && 'opacity-70 cursor-not-allowed'
+            (isProcessing || (hasPermission === false)) && 'opacity-70 cursor-not-allowed'
           )}
           aria-label={isRecording ? '録音停止' : '録音開始'}
           style={{ width: '3.5rem', height: '3.5rem' }} // 親指操作用に少し大きめに
@@ -255,6 +309,23 @@ export default function AudioRecorder({
         {isRecording && (
           <div className="mt-1 px-2 py-0.5 bg-red-100 rounded-full text-xs text-red-600 font-medium">
             {formatTime(recordingTime)}
+          </div>
+        )}
+        
+        {/* マイク権限ガイド */}
+        {hasPermission === false && (
+          <div className="mt-2 text-center text-xs text-gray-600">
+            <p>マイク権限が必要です</p>
+            <a 
+              href="#" 
+              onClick={(e) => {
+                e.preventDefault();
+                startRecording(); // 再度権限リクエストを試みる
+              }}
+              className="text-blue-500 hover:underline"
+            >
+              再試行する
+            </a>
           </div>
         )}
       </div>

@@ -13,9 +13,9 @@ const inter = Inter({
 
 // メタデータの拡張
 export const metadata: Metadata = {
-  title: "音声文字起こしアプリ",
-  description: "ワンクリックで録音、文字起こし、校正ができるシンプルなアプリ",
-  keywords: ["音声認識", "文字起こし", "AI", "Gemini API"],
+  title: "しゃべりを校正くん",
+  description: "音声録音から文字起こし・校正まで、ワンクリックでできるシンプルなアプリ",
+  keywords: ["音声認識", "文字起こし", "校正", "AI", "Gemini API"],
 };
 
 // ビューポート設定の最適化

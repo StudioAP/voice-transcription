@@ -175,34 +175,34 @@ export default function TranscriptionResult({
             {icon}
             <span>{title}</span>
           </h3>
-          <div className="flex gap-0.5">
+          <div className="flex gap-1">
             <button
               onClick={() => handleCopy(type)}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 transition-colors"
               aria-label="クリップボードにコピー"
               title="クリップボードにコピー"
             >
               {copyStatus[type] ? (
-                <Check className="w-3.5 h-3.5 text-green-500" />
+                <Check className="w-5 h-5 text-green-500" />
               ) : (
-                <Copy className="w-3.5 h-3.5 text-gray-500" />
+                <Copy className="w-5 h-5 text-gray-500" />
               )}
             </button>
             <button
               onClick={() => handleDownload(type)}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 transition-colors"
               aria-label="ファイルをダウンロード"
               title="ファイルをダウンロード"
             >
-              <Download className="w-3.5 h-3.5 text-gray-500" />
+              <Download className="w-5 h-5 text-gray-500" />
             </button>
             <button
               onClick={() => handleShare(type)}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 transition-colors"
               aria-label="外部サービスで共有"
               title="外部サービスで共有"
             >
-              <Share2 className="w-3.5 h-3.5 text-gray-500" />
+              <Share2 className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         </div>
