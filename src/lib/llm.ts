@@ -92,48 +92,46 @@ export async function removeFillerSounds(transcription: string): Promise<string>
     console.log('フィラー音除去開始:', transcription.substring(0, 100) + '...');
     
     // フィラー音のパターン
-    const fillerPatterns = [
-      /あー+/g, /えー+/g, /うー+/g, /んー+/g, /その+/g, /まぁ+/g, /ま、/g, 
-      /あの+/g, /えっと/g, /んと/g, /あのー+/g, /えーと/g, /えっとー+/g,
-      /ええと/g, /まあ/g, /ええ+/g, /うーん+/g, /えっとですね/g,
-      // 読点込みのパターン
+    // 読点込みのパターン（先に処理）
+    const fillerPatternsWithComma = [
       /あー+、/g, /えー+、/g, /うー+、/g, /んー+、/g, /その+、/g, /まぁ+、/g,
       /あの+、/g, /えっと、/g, /んと、/g, /あのー+、/g, /えーと、/g, /えっとー+、/g,
       /ええと、/g, /まあ、/g, /ええ+、/g, /うーん+、/g, /えっとですね、/g
     ];
     
-    // フィラー音を除去
+    // 読点なしのパターン（後から処理）
+    const fillerPatternsWithoutComma = [
+      /あー+/g, /えー+/g, /うー+/g, /んー+/g, /その+/g, /まぁ+/g, /ま、/g, 
+      /あの+/g, /えっと/g, /んと/g, /あのー+/g, /えーと/g, /えっとー+/g,
+      /ええと/g, /まあ/g, /ええ+/g, /うーん+/g, /えっとですね/g
+    ];
+    
+    // フィラー音を除去（順序を厳格に制御）
     let cleanedText = transcription;
-    fillerPatterns.forEach(pattern => {
-      cleanedText = cleanedText.replace(pattern, '');
-    });
+    
+    // 1. 先に読点込みのパターンを処理
+    for (const pattern of fillerPatternsWithComma) {
+      while (pattern.test(cleanedText)) {
+        cleanedText = cleanedText.replace(pattern, '');
+      }
+    }
+    
+    // 2. その後に読点なしのパターンを処理
+    for (const pattern of fillerPatternsWithoutComma) {
+      while (pattern.test(cleanedText)) {
+        cleanedText = cleanedText.replace(pattern, '');
+      }
+    }
     
     // 複数のスペースを1つに置換
     cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
     
     // 文節と文節のつなぎ目を整理（読点の処理）
-    // 1. 連続する句読点を整理
+    // 連続する句読点を整理
     cleanedText = cleanedText.replace(/、+/g, '、');
     cleanedText = cleanedText.replace(/。+/g, '。');
     
-    // 2. 不自然な箇所に読点を追加（文の区切りが長い場合）
-    // 中国語や日本語の文字が20文字以上連続していて読点がない箇所に読点を追加
-    const segmentRegex = /[一-龯ぁ-んァ-ヶ]{20,}/g;
-    cleanedText = cleanedText.replace(segmentRegex, (match) => {
-      // 約10-15文字ごとに読点を挿入（自然な区切りを考慮）
-      const segments = [];
-      let currentIndex = 0;
-      
-      while (currentIndex < match.length) {
-        // ランダムな長さ（10-15文字）で区切る
-        const segmentLength = Math.floor(Math.random() * 6) + 10;
-        const endIndex = Math.min(currentIndex + segmentLength, match.length);
-        segments.push(match.substring(currentIndex, endIndex));
-        currentIndex = endIndex;
-      }
-      
-      return segments.join('、');
-    });
+    // 長い文章に読点を自動挿入するロジック削除（廃止）
     
     console.log('フィラー音除去完了:', cleanedText.substring(0, 100) + '...');
     
