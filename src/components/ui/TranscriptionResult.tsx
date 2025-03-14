@@ -10,37 +10,42 @@ interface TranscriptionResultProps {
   transcription: string
   fillerRemovedText: string
   correctedText: string
+  correctedFillerRemovedText: string
   isLoading?: boolean
   className?: string
 }
 
 /**
- * 文字起こし結果、フィラー音除去テキスト、校正テキストを同時に表示するコンポーネント
+ * 文字起こし結果、フィラー音除去テキスト、校正テキスト、校正＋フィラー音除去テキストを表示するコンポーネント
  */
 export default function TranscriptionResult({
   transcription,
   fillerRemovedText,
   correctedText,
+  correctedFillerRemovedText,
   isLoading = false,
   className,
 }: TranscriptionResultProps) {
   const [editableTexts, setEditableTexts] = useState({
     transcription: transcription || '',
     fillerRemoved: fillerRemovedText || '',
-    corrected: correctedText || ''
+    corrected: correctedText || '',
+    correctedFillerRemoved: correctedFillerRemovedText || ''
   })
   
   const [copyStatus, setCopyStatus] = useState({
     transcription: false,
     fillerRemoved: false,
-    corrected: false
+    corrected: false,
+    correctedFillerRemoved: false
   })
   
   // 各種テキストエリアへの参照
   const textareaRefs = {
     transcription: useRef<HTMLTextAreaElement>(null),
     fillerRemoved: useRef<HTMLTextAreaElement>(null),
-    corrected: useRef<HTMLTextAreaElement>(null)
+    corrected: useRef<HTMLTextAreaElement>(null),
+    correctedFillerRemoved: useRef<HTMLTextAreaElement>(null)
   }
   
   // props更新時にstate更新
@@ -53,9 +58,12 @@ export default function TranscriptionResult({
   if (correctedText !== editableTexts.corrected) {
     setEditableTexts(prev => ({ ...prev, corrected: correctedText }))
   }
+  if (correctedFillerRemovedText !== editableTexts.correctedFillerRemoved) {
+    setEditableTexts(prev => ({ ...prev, correctedFillerRemoved: correctedFillerRemovedText }))
+  }
   
   // クリップボードにコピー
-  const handleCopy = async (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+  const handleCopy = async (type: 'transcription' | 'fillerRemoved' | 'corrected' | 'correctedFillerRemoved') => {
     const text = editableTexts[type]
     if (!text) return
     
@@ -69,7 +77,7 @@ export default function TranscriptionResult({
   }
   
   // ファイルとしてダウンロード
-  const handleDownload = (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+  const handleDownload = (type: 'transcription' | 'fillerRemoved' | 'corrected' | 'correctedFillerRemoved') => {
     const content = editableTexts[type]
     if (!content) return
     
@@ -86,13 +94,16 @@ export default function TranscriptionResult({
       case 'corrected':
         filename = `校正済み_${today}.txt`
         break
+      case 'correctedFillerRemoved':
+        filename = `校正済み_フィラー除去_${today}.txt`
+        break
     }
     
     downloadFile(content, filename)
   }
 
   // 外部サービスで共有
-  const handleShare = async (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+  const handleShare = async (type: 'transcription' | 'fillerRemoved' | 'corrected' | 'correctedFillerRemoved') => {
     const content = editableTexts[type]
     if (!content) return
     
@@ -108,13 +119,16 @@ export default function TranscriptionResult({
       case 'corrected':
         title = '校正済みテキスト'
         break
+      case 'correctedFillerRemoved':
+        title = '校正済み＋フィラー除去テキスト'
+        break
     }
     
     await shareContent(content, title)
   }
 
   // テキストエリアの変更処理
-  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>, type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>, type: 'transcription' | 'fillerRemoved' | 'corrected' | 'correctedFillerRemoved') => {
     const newText = e.target.value
     setEditableTexts(prev => ({
       ...prev,
@@ -132,7 +146,7 @@ export default function TranscriptionResult({
   }
   
   // テキストカード表示
-  const renderTextCard = (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+  const renderTextCard = (type: 'transcription' | 'fillerRemoved' | 'corrected' | 'correctedFillerRemoved') => {
     let title = '', icon = null, bgColor = ''
     
     switch (type) {
@@ -150,6 +164,11 @@ export default function TranscriptionResult({
         title = '校正済み'
         icon = <Sparkles className="w-3.5 h-3.5 text-amber-500" />
         bgColor = 'bg-amber-50'
+        break
+      case 'correctedFillerRemoved':
+        title = '校正＋フィラー除去'
+        icon = <ClipboardCopy className="w-3.5 h-3.5 text-green-500" />
+        bgColor = 'bg-green-50'
         break
     }
     
@@ -213,10 +232,11 @@ export default function TranscriptionResult({
       )}
       
       {hasContent && !isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 pb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 pb-2">
           {renderTextCard('transcription')}
           {renderTextCard('fillerRemoved')}
           {renderTextCard('corrected')}
+          {renderTextCard('correctedFillerRemoved')}
         </div>
       )}
       

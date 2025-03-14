@@ -18,6 +18,7 @@ export default function Home() {
   const [transcription, setTranscription] = useState<string>('')
   const [fillerRemovedText, setFillerRemovedText] = useState<string>('')
   const [correctedText, setCorrectedText] = useState<string>('')
+  const [correctedFillerRemovedText, setCorrectedFillerRemovedText] = useState<string>('')
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export default function Home() {
     setTranscription('') // 結果をリセット
     setFillerRemovedText('') // フィラー除去テキストもリセット
     setCorrectedText('') // 校正テキストもリセット
+    setCorrectedFillerRemovedText('') // 校正＋フィラー除去テキストもリセット
     
     try {
       if (apiKeyError) {
@@ -86,6 +88,15 @@ export default function Home() {
           
           setFillerRemovedText(fillerRemoved)
           setCorrectedText(corrected)
+          
+          // 校正テキストからもフィラー音を削除
+          try {
+            const correctedFillerRemoved = await removeFillerSounds(corrected);
+            setCorrectedFillerRemovedText(correctedFillerRemoved);
+          } catch (error) {
+            console.error('校正テキストからのフィラー音除去に失敗しました:', error);
+            setCorrectedFillerRemovedText('');
+          }
         } catch (error) {
           console.error('テキスト処理に失敗しました:', error)
           const errorMsg = error instanceof Error ? error.message : 'テキスト処理に失敗しました'
@@ -188,6 +199,7 @@ export default function Home() {
             transcription={transcription}
             fillerRemovedText={fillerRemovedText}
             correctedText={correctedText}
+            correctedFillerRemovedText={correctedFillerRemovedText}
             isLoading={isTranscribing || isProcessing}
           />
         </div>
