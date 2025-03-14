@@ -77,19 +77,68 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 }
 
 /**
+ * 文字起こしテキストからフィラー音を除去する関数
+ * 
+ * @param transcription - 文字起こしテキスト
+ * @returns フィラー音を除去したテキスト
+ */
+export async function removeFillerSounds(transcription: string): Promise<string> {
+  try {
+    if (!transcription || transcription.trim().length === 0) {
+      throw new Error('処理するテキストが空です');
+    }
+    
+    console.log('フィラー音除去開始:', transcription.substring(0, 100) + '...');
+    
+    // フィラー音のパターン
+    const fillerPatterns = [
+      /あー+/g, /えー+/g, /うー+/g, /んー+/g, /その+/g, /まぁ+/g, /ま、/g, 
+      /あの+/g, /えっと/g, /んと/g, /あのー+/g, /えーと/g, /えっとー+/g,
+      /ええと/g, /まあ/g, /ええ+/g, /うーん+/g, /えっとですね/g
+    ];
+    
+    // フィラー音を除去
+    let cleanedText = transcription;
+    fillerPatterns.forEach(pattern => {
+      cleanedText = cleanedText.replace(pattern, '');
+    });
+    
+    // 複数のスペースを1つに置換
+    cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+    
+    console.log('フィラー音除去完了:', cleanedText.substring(0, 100) + '...');
+    
+    if (!cleanedText || cleanedText.trim().length === 0) {
+      throw new Error('フィラー音除去結果が空です');
+    }
+    
+    return cleanedText.trim();
+  } catch (error) {
+    console.error('フィラー音除去中にエラーが発生しました:', error);
+    if (error instanceof Error) {
+      console.error('エラーメッセージ:', error.message);
+      console.error('エラータイプ:', error.name);
+      console.error('エラースタック:', error.stack);
+    }
+    throw new Error('フィラー音の除去に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
+  }
+}
+
+/**
  * 文字起こしテキストを校正する関数
  * Gemini APIを使用して文字起こしテキストを校正します
  * 
  * @param transcription - 文字起こしテキスト
+ * @param temperature - 生成の多様性を調整するパラメータ（0～1）
  * @returns 校正済みテキスト
  */
-export async function correctTranscription(transcription: string): Promise<string> {
+export async function correctTranscription(transcription: string, temperature: number = 0): Promise<string> {
   try {
     if (!transcription || transcription.trim().length === 0) {
       throw new Error('校正するテキストが空です');
     }
     
-    console.log('テキスト校正開始:', transcription.substring(0, 100) + '...');
+    console.log(`テキスト校正開始 (temperature=${temperature}):`, transcription.substring(0, 100) + '...');
     
     const prompt = `
       あなたは文章校正の専門家です。
@@ -110,8 +159,8 @@ export async function correctTranscription(transcription: string): Promise<strin
       コメントや説明は不要です。校正済みテキストのみを返してください。
     `;
     
-    const correctedText = await generateText(prompt);
-    console.log('テキスト校正完了:', correctedText.substring(0, 100) + '...');
+    const correctedText = await generateText(prompt, temperature);
+    console.log(`テキスト校正完了 (temperature=${temperature}):`, correctedText.substring(0, 100) + '...');
     
     if (!correctedText || correctedText.trim().length === 0) {
       throw new Error('校正結果が空です');
@@ -119,13 +168,13 @@ export async function correctTranscription(transcription: string): Promise<strin
     
     return correctedText.trim();
   } catch (error) {
-    console.error('テキスト校正中にエラーが発生しました:', error);
+    console.error(`テキスト校正中にエラーが発生しました (temperature=${temperature}):`, error);
     if (error instanceof Error) {
       console.error('エラーメッセージ:', error.message);
       console.error('エラータイプ:', error.name);
       console.error('エラースタック:', error.stack);
     }
-    throw new Error('テキストの校正に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
+    throw new Error(`テキストの校正に失敗しました (temperature=${temperature}): ` + (error instanceof Error ? error.message : '不明なエラー'));
   }
 }
 

@@ -40,19 +40,19 @@ const safetySettings = [
 export const genAI = new GoogleGenerativeAI(API_KEY);
 
 // モデルの取得
-export const getGeminiModel = () => {
+export const getGeminiModel = (temperature: number = 0.1) => {
   // APIキーのデバッグチェック
   if (!API_KEY) {
     console.error('API_KEYが設定されていません。有効なAPIキーが必要です。');
   }
   
-  console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY });
+  console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY, temperature });
   
   return genAI.getGenerativeModel({ 
     model: MODEL_NAME,
     safetySettings,
     generationConfig: {
-      temperature: 0.1,
+      temperature: temperature,
       topK: 32,
       topP: 0.95,
       maxOutputTokens: 8192,
@@ -106,27 +106,28 @@ export async function transcribeAudioWithGemini(audioData: string, mimeType: str
 /**
  * テキスト生成を行う関数
  * @param prompt - プロンプト
+ * @param temperature - 生成の多様性を調整するパラメータ（0～1）
  * @returns 生成されたテキスト
  */
-export async function generateText(prompt: string): Promise<string> {
+export async function generateText(prompt: string, temperature: number = 0.1): Promise<string> {
   try {
     // APIキーが空の場合は早期にエラーをスロー
     if (!API_KEY) {
       throw new Error('Gemini APIキーが設定されていません。テキスト生成を実行できません。');
     }
     
-    const model = getGeminiModel();
+    const model = getGeminiModel(temperature);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
-    console.error('Gemini APIでエラーが発生しました:', error);
+    console.error(`Gemini API (temperature=${temperature})でエラーが発生しました:`, error);
     // エラーの詳細情報を出力
     if (error instanceof Error) {
       console.error('エラータイプ:', error.name);
       console.error('エラーメッセージ:', error.message);
       console.error('エラースタック:', error.stack);
     }
-    throw new Error('テキスト生成中にエラーが発生しました');
+    throw new Error(`テキスト生成中にエラーが発生しました (temperature=${temperature})`);
   }
 } 

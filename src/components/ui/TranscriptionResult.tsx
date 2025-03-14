@@ -1,209 +1,229 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Copy, Download, Check, RefreshCw, BrainCircuit, Share2, ClipboardCopy } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Copy, Download, Share2, ClipboardCopy, MessageSquare, Sparkles, Eraser, Check } from 'lucide-react'
 import { cn, copyToClipboard, downloadFile, shareContent } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 interface TranscriptionResultProps {
   transcription: string
-  minutes?: string
+  fillerRemovedText: string
+  correctedText: string
   isLoading?: boolean
-  onGenerateMinutes?: () => void
   className?: string
 }
 
 /**
- * 文字起こし結果と校正テキストを表示するコンポーネント
+ * 文字起こし結果、フィラー音除去テキスト、校正テキストを同時に表示するコンポーネント
  */
 export default function TranscriptionResult({
   transcription,
-  minutes: correctedText,
+  fillerRemovedText,
+  correctedText,
   isLoading = false,
-  onGenerateMinutes: onCorrectText,
   className,
 }: TranscriptionResultProps) {
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
-  const [copyMinutesStatus, setCopyMinutesStatus] = useState<'idle' | 'copied'>('idle')
-  const [shareStatus, setShareStatus] = useState<'idle' | 'shared'>('idle')
-  const [shareMinutesStatus, setShareMinutesStatus] = useState<'idle' | 'shared'>('idle')
-  const [editableCorrectedText, setEditableCorrectedText] = useState<string>('')
-  const [showCopyNotification, setShowCopyNotification] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [editableTexts, setEditableTexts] = useState({
+    transcription: transcription || '',
+    fillerRemoved: fillerRemovedText || '',
+    corrected: correctedText || ''
+  })
   
-  // 校正テキストが更新されたら、編集可能なテキストも更新して、クリップボードにコピー
-  useEffect(() => {
-    if (correctedText && correctedText.trim().length > 0) {
-      setEditableCorrectedText(correctedText)
-      handleCopyWithNotification(correctedText)
-    }
-  }, [correctedText])
-
-  // 通知付きでクリップボードにコピー
-  const handleCopyWithNotification = async (text: string) => {
+  const [copyStatus, setCopyStatus] = useState({
+    transcription: false,
+    fillerRemoved: false,
+    corrected: false
+  })
+  
+  // 各種テキストエリアへの参照
+  const textareaRefs = {
+    transcription: useRef<HTMLTextAreaElement>(null),
+    fillerRemoved: useRef<HTMLTextAreaElement>(null),
+    corrected: useRef<HTMLTextAreaElement>(null)
+  }
+  
+  // props更新時にstate更新
+  if (transcription !== editableTexts.transcription) {
+    setEditableTexts(prev => ({ ...prev, transcription }))
+  }
+  if (fillerRemovedText !== editableTexts.fillerRemoved) {
+    setEditableTexts(prev => ({ ...prev, fillerRemoved: fillerRemovedText }))
+  }
+  if (correctedText !== editableTexts.corrected) {
+    setEditableTexts(prev => ({ ...prev, corrected: correctedText }))
+  }
+  
+  // クリップボードにコピー
+  const handleCopy = async (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+    const text = editableTexts[type]
     if (!text) return
     
     const success = await copyToClipboard(text)
     if (success) {
-      setShowCopyNotification(true)
-      setTimeout(() => setShowCopyNotification(false), 3000)
-    }
-  }
-  
-  // クリップボードにコピー
-  const handleCopy = async (text: string, setCopyFunc: (status: 'idle' | 'copied') => void) => {
-    const success = await copyToClipboard(text)
-    if (success) {
-      setCopyFunc('copied')
-      setTimeout(() => setCopyFunc('idle'), 2000)
+      setCopyStatus(prev => ({ ...prev, [type]: true }))
+      setTimeout(() => {
+        setCopyStatus(prev => ({ ...prev, [type]: false }))
+      }, 2000)
     }
   }
   
   // ファイルとしてダウンロード
-  const handleDownload = (content: string, type: 'transcription' | 'corrected') => {
+  const handleDownload = (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+    const content = editableTexts[type]
+    if (!content) return
+    
     const today = format(new Date(), 'yyyy-MM-dd_HH-mm', { locale: ja })
-    const filename = type === 'transcription' 
-      ? `文字起こし_${today}.txt` 
-      : `校正済み_${today}.txt`
+    let filename = ''
+    
+    switch (type) {
+      case 'transcription':
+        filename = `文字起こし_${today}.txt`
+        break
+      case 'fillerRemoved':
+        filename = `フィラー除去_${today}.txt`
+        break
+      case 'corrected':
+        filename = `校正済み_${today}.txt`
+        break
+    }
+    
     downloadFile(content, filename)
   }
 
   // 外部サービスで共有
-  const handleShare = async (content: string, type: 'transcription' | 'corrected') => {
-    const title = type === 'transcription' ? '文字起こし結果' : '校正済みテキスト'
-    const setShareFunc = type === 'transcription' ? setShareStatus : setShareMinutesStatus
-    const success = await shareContent(content, title)
-    if (success) {
-      setShareFunc('shared')
-      setTimeout(() => setShareFunc('idle'), 2000)
+  const handleShare = async (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+    const content = editableTexts[type]
+    if (!content) return
+    
+    let title = ''
+    
+    switch (type) {
+      case 'transcription':
+        title = '文字起こし結果'
+        break
+      case 'fillerRemoved':
+        title = 'フィラー音除去テキスト'
+        break
+      case 'corrected':
+        title = '校正済みテキスト'
+        break
     }
+    
+    await shareContent(content, title)
   }
 
   // テキストエリアの変更処理
-  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>, type: 'transcription' | 'fillerRemoved' | 'corrected') => {
     const newText = e.target.value
-    setEditableCorrectedText(newText)
-    handleCopyWithNotification(newText)
+    setEditableTexts(prev => ({
+      ...prev,
+      [type]: newText
+    }))
   }
   
-  // 内容があるかどうかを確認
+  // テキストが利用可能かどうかを確認
   const hasContent = transcription && transcription.trim().length > 0
-  const hasCorrectedText = correctedText && correctedText.trim().length > 0
+  
+  // テキストエリアの最適化されたサイズを計算
+  const getTextareaHeight = () => {
+    // モバイルでは小さめに、デスクトップでは少し大きめに
+    return 'min-h-[130px] max-h-[200px]'
+  }
+  
+  // テキストカード表示
+  const renderTextCard = (type: 'transcription' | 'fillerRemoved' | 'corrected') => {
+    let title = '', icon = null
+    
+    switch (type) {
+      case 'transcription':
+        title = '文字起こし'
+        icon = <MessageSquare className="w-4 h-4 text-blue-500" />
+        break
+      case 'fillerRemoved':
+        title = 'フィラー除去'
+        icon = <Eraser className="w-4 h-4 text-purple-500" />
+        break
+      case 'corrected':
+        title = '校正済み'
+        icon = <Sparkles className="w-4 h-4 text-amber-500" />
+        break
+    }
+    
+    return (
+      <div className="bg-white border rounded-lg shadow p-2 flex flex-col h-full">
+        <div className="flex justify-between items-center mb-1">
+          <h3 className="text-sm font-semibold flex items-center gap-1">
+            {icon}
+            <span>{title}</span>
+          </h3>
+          <div className="flex gap-1">
+            <button
+              onClick={() => handleCopy(type)}
+              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              aria-label="クリップボードにコピー"
+              title="クリップボードにコピー"
+            >
+              {copyStatus[type] ? (
+                <Check className="w-4 h-4 text-green-500" />
+              ) : (
+                <Copy className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+            <button
+              onClick={() => handleDownload(type)}
+              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              aria-label="ファイルをダウンロード"
+              title="ファイルをダウンロード"
+            >
+              <Download className="w-4 h-4 text-gray-500" />
+            </button>
+            <button
+              onClick={() => handleShare(type)}
+              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              aria-label="外部サービスで共有"
+              title="外部サービスで共有"
+            >
+              <Share2 className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        <textarea
+          ref={textareaRefs[type]}
+          value={editableTexts[type]}
+          onChange={(e) => handleTextAreaChange(e, type)}
+          className={`flex-grow w-full ${getTextareaHeight()} border p-2 rounded text-sm bg-gray-50 whitespace-pre-wrap resize-none focus:ring-1 focus:ring-blue-300 focus:outline-none`}
+          placeholder={`${title}結果がここに表示されます`}
+        />
+      </div>
+    )
+  }
   
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* 文字起こし結果 */}
-      {hasContent && (
-        <div className="bg-white border rounded-lg p-4 shadow">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-semibold">文字起こし結果</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCopy(transcription, setCopyStatus)}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="クリップボードにコピー"
-              >
-                {copyStatus === 'copied' ? (
-                  <Check className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Copy className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
-              <button
-                onClick={() => handleDownload(transcription, 'transcription')}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="ファイルをダウンロード"
-              >
-                <Download className="w-5 h-5 text-gray-500" />
-              </button>
-              <button
-                onClick={() => handleShare(transcription, 'transcription')}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="外部サービスで共有"
-              >
-                {shareStatus === 'shared' ? (
-                  <Check className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Share2 className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="border p-3 rounded bg-gray-50 whitespace-pre-wrap">
-            {transcription}
-          </div>
+    <div className={cn('space-y-2', className)}>
+      {hasContent && !isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {renderTextCard('transcription')}
+          {renderTextCard('fillerRemoved')}
+          {renderTextCard('corrected')}
         </div>
       )}
       
-      {/* テキスト校正中 */}
-      {isLoading && (
-        <div className="flex justify-center items-center p-4 text-blue-600">
-          <BrainCircuit className="w-6 h-6 animate-pulse mr-2" />
-          <span>Gemini APIでテキストを校正中...</span>
-        </div>
-      )}
-      
-      {/* 校正テキスト結果（編集可能） */}
-      {hasCorrectedText && (
-        <div className="bg-white border rounded-lg p-4 shadow relative">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-semibold">校正済みテキスト（編集可能）</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCopy(editableCorrectedText, setCopyMinutesStatus)}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="クリップボードにコピー"
-              >
-                {copyMinutesStatus === 'copied' ? (
-                  <Check className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Copy className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
-              <button
-                onClick={() => handleDownload(editableCorrectedText, 'corrected')}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="ファイルをダウンロード"
-              >
-                <Download className="w-5 h-5 text-gray-500" />
-              </button>
-              <button
-                onClick={() => handleShare(editableCorrectedText, 'corrected')}
-                className="p-2 rounded hover:bg-gray-100 transition-colors"
-                aria-label="外部サービスで共有"
-              >
-                {shareMinutesStatus === 'shared' ? (
-                  <Check className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Share2 className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* 編集可能なテキストエリア */}
-          <textarea
-            ref={textareaRef}
-            value={editableCorrectedText}
-            onChange={handleTextAreaChange}
-            className="w-full min-h-[200px] border p-3 rounded bg-gray-50 whitespace-pre-wrap resize-y focus:ring-2 focus:ring-blue-300 focus:outline-none"
-          />
-          
-          {/* コピー通知 */}
-          {showCopyNotification && (
-            <div className="absolute bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center">
-              <ClipboardCopy className="w-4 h-4 mr-2" />
-              <span>コピーしました！</span>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* コンテンツがない場合 */}
-      {!hasContent && !isLoading && (
+      {/* コンテンツがない場合またはロード中の場合 */}
+      {(!hasContent || isLoading) && (
         <div className="text-center text-gray-500 py-4">
-          音声を録音すると、ここに文字起こし結果が表示されます。
+          {isLoading ? (
+            <span className="flex items-center justify-center text-blue-500">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              テキスト処理中...
+            </span>
+          ) : (
+            "音声を録音すると、ここに文字起こし結果が表示されます。"
+          )}
         </div>
       )}
     </div>
