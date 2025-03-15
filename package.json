@@ -10,6 +10,7 @@
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
+    "@google-cloud/speech": "^6.7.1",
     "@google/generative-ai": "^0.24.0",
     "clsx": "^2.1.1",
     "critters": "^0.0.20",
