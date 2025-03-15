@@ -1,14 +1,8 @@
-import speech from '@google-cloud/speech';
-
-// 環境変数のデバッグ出力
-console.log('Speech-to-Text サーバー環境変数情報:', {
-  NODE_ENV: process.env.NODE_ENV,
-  GOOGLE_CREDENTIALS_EXISTS: !!process.env.GOOGLE_CREDENTIALS_JSON
-});
+// Google Cloud Speech-to-Text REST APIを直接使用する実装
 
 /**
  * 音声データを文字起こしする関数（サーバーサイド専用）
- * Google Cloud Speech-to-Text APIを使用
+ * Google Cloud Speech-to-Text REST APIを使用
  * 
  * @param audioData - Base64エンコードされた音声データ
  * @param mimeType - 音声データのMIMEタイプ
@@ -18,47 +12,58 @@ export async function transcribeAudioWithSpeechAPI(audioData: string, mimeType: 
   try {
     console.log('サーバー: Speech-to-Text API 音声認識開始:', { mimeType, dataLength: audioData.length });
     
-    // 環境変数からJSONの認証情報を取得
-    const credentials = process.env.GOOGLE_CREDENTIALS_JSON ? 
-      JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON) : 
-      undefined;
+    // API キーを環境変数から取得
+    const apiKey = process.env.GOOGLE_SPEECH_API_KEY;
+    if (!apiKey) {
+      throw new Error('Google Cloud Speech API キーが設定されていません');
+    }
     
-    // Speech-to-Text クライアントの作成（環境変数から認証情報を使用）
-    const client = new speech.SpeechClient({
-      credentials: credentials
-    });
-    
-    // Base64データをバイナリデータに変換
-    const audioBytes = Buffer.from(audioData, 'base64');
-    
-    // リクエスト設定
-    const config = {
-      encoding: getEncodingFromMimeType(mimeType),
-      sampleRateHertz: 16000, // サンプルレートは音声によって異なる場合があります
-      languageCode: 'ja-JP',
-      model: 'default',
-      enableAutomaticPunctuation: true,
-      enableWordTimeOffsets: false,
-    };
-    
-    // 音声認識リクエストの作成
-    const request = {
-      audio: {
-        content: audioBytes,
+    // リクエストボディを作成
+    const requestBody = {
+      config: {
+        encoding: getEncodingFromMimeType(mimeType),
+        sampleRateHertz: 16000,
+        languageCode: 'ja-JP',
+        model: 'default',
+        enableAutomaticPunctuation: true,
       },
-      config: config,
+      audio: {
+        content: audioData
+      }
     };
     
-    // 音声認識の実行
-    const [response] = await client.recognize(request);
+    // REST APIリクエストを実行
+    const response = await fetch(
+      `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      }
+    );
     
-    if (!response || !response.results || response.results.length === 0) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Speech API エラーレスポンス:', errorText);
+      throw new Error(`Speech API エラー: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.results || data.results.length === 0) {
       throw new Error('音声認識結果が空です');
     }
     
     // 結果の取得とテキスト構築
-    const transcription = response.results
-      .map(result => result.alternatives && result.alternatives[0] ? result.alternatives[0].transcript : '')
+    const transcription = data.results
+      .map((result: any) => {
+        if (result.alternatives && result.alternatives.length > 0) {
+          return result.alternatives[0].transcript || '';
+        }
+        return '';
+      })
       .join(' ')
       .trim();
     
