@@ -81,7 +81,11 @@ export async function transcribeAudioWithSpeechAPI(audioData: string, mimeType: 
     );
 
     console.log('Speech API レスポンスステータス:', response.status, response.statusText);
-    console.log('Speech API レスポンスヘッダー:', Object.fromEntries([...response.headers.entries()]));
+    const headerObj: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headerObj[key] = value;
+    });
+    console.log('Speech API レスポンスヘッダー:', headerObj);
 
     // レスポンスの処理
     if (!response.ok) {
