@@ -9,7 +9,7 @@ console.log('環境変数情報:', {
 
 // APIキーと使用するモデルを環境変数から取得
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-const MODEL_NAME = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-1.5-flash-002';
+const MODEL_NAME = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-pro';
 
 // APIキーが設定されていない場合はエラーメッセージを表示
 if (!API_KEY) {
@@ -75,7 +75,17 @@ export async function transcribeAudioWithGemini(audioData: string, mimeType: str
       throw new Error('Gemini APIキーが設定されていません。文字起こしを実行できません。');
     }
     
-    const model = getGeminiModel();
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-pro-vision',
+      safetySettings,
+      generationConfig: {
+        temperature: 0.1,
+        topK: 32,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      }
+    });
+
     const result = await model.generateContent({
       contents: [{
         role: 'user',
