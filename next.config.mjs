@@ -23,9 +23,10 @@ const nextConfig = {
   
   // 実験的機能の制御
   experimental: {
-    optimizeCss: true, // CSS最適化
-    legacyBrowsers: false, // レガシーブラウザのサポートを無効化
-    browsersListForSwc: true, // SWCでのブラウザリストを有効化
+    optimizeCss: {
+      enabled: true,
+      cssModules: true,
+    },
   },
   
   // ビルド設定
