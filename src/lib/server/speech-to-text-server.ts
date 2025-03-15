@@ -10,79 +10,127 @@
  */
 export async function transcribeAudioWithSpeechAPI(audioData: string, mimeType: string): Promise<string> {
   try {
-    console.log('サーバー: Speech-to-Text API 音声認識開始:', { mimeType, dataLength: audioData.length });
-    
-    // API キーを環境変数から取得
+    console.log('Speech-to-Text API認識開始:', { 
+      mimeType, 
+      dataLength: audioData.length,
+      dataPreview: audioData.substring(0, 50) + '...' 
+    });
+
+    // APIキーの取得とバリデーション
     const apiKey = process.env.GOOGLE_SPEECH_API_KEY;
     if (!apiKey) {
-      throw new Error('Google Cloud Speech API キーが設定されていません');
+      console.error('Google Speech APIキーが設定されていません');
+      throw new Error('Speech-to-Text APIキーが設定されていません');
     }
     
-    // リクエストボディを作成
+    console.log('Google Speech APIキー検出:', apiKey.substring(0, 3) + '...' + apiKey.substring(apiKey.length - 3));
+
+    // エンコーディングタイプの決定
+    let encoding = '';
+    if (mimeType.includes('webm')) {
+      encoding = 'WEBM_OPUS';
+      console.log('WebMフォーマットを検出: WEBM_OPUS エンコーディングを使用');
+    } else if (mimeType.includes('mp3') || mimeType.includes('mpeg')) {
+      encoding = 'MP3';
+      console.log('MP3フォーマットを検出: MP3 エンコーディングを使用');
+    } else if (mimeType.includes('wav')) {
+      encoding = 'LINEAR16';
+      console.log('WAVフォーマットを検出: LINEAR16 エンコーディングを使用');
+    } else if (mimeType.includes('flac')) {
+      encoding = 'FLAC';
+      console.log('FLACフォーマットを検出: FLAC エンコーディングを使用');
+    } else {
+      encoding = 'OGG_OPUS';
+      console.log('デフォルトエンコーディング: OGG_OPUS を使用');
+    }
+
+    // サンプルレートの設定（WebMは48000Hz、その他は16000Hz）
+    const sampleRateHertz = mimeType.includes('webm') ? 48000 : 16000;
+    console.log(`サンプルレート設定: ${sampleRateHertz}Hz`);
+
+    // リクエストボディの構築
     const requestBody = {
       config: {
-        encoding: getEncodingFromMimeType(mimeType),
-        sampleRateHertz: 16000,
+        encoding: encoding,
+        sampleRateHertz: sampleRateHertz,
         languageCode: 'ja-JP',
-        model: 'default',
         enableAutomaticPunctuation: true,
       },
       audio: {
         content: audioData
       }
     };
-    
-    // REST APIリクエストを実行
+
+    console.log('APIリクエスト構築:', {
+      encoding: requestBody.config.encoding,
+      sampleRate: requestBody.config.sampleRateHertz,
+      languageCode: requestBody.config.languageCode,
+      audioContentLength: requestBody.audio.content.length
+    });
+
+    // Speech APIへのリクエスト
     const response = await fetch(
       `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       }
     );
-    
+
+    console.log('Speech API レスポンスステータス:', response.status, response.statusText);
+    console.log('Speech API レスポンスヘッダー:', Object.fromEntries([...response.headers.entries()]));
+
+    // レスポンスの処理
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Speech API エラーレスポンス:', errorText);
+      console.error('Speech API エラーレスポンス:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
       throw new Error(`Speech API エラー: ${response.status} ${response.statusText}`);
     }
-    
+
     const data = await response.json();
-    
+    console.log('Speech API レスポンス構造:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
+
+    // 音声認識結果の処理
     if (!data.results || data.results.length === 0) {
-      throw new Error('音声認識結果が空です');
+      console.error('Speech API: 結果がありません', data);
+      throw new Error('音声認識結果が空です。クリアに発音してみてください。');
     }
-    
-    // 結果の取得とテキスト構築
-    const transcription = data.results
-      .map((result: any) => {
-        if (result.alternatives && result.alternatives.length > 0) {
-          return result.alternatives[0].transcript || '';
-        }
-        return '';
-      })
-      .join(' ')
-      .trim();
-    
-    console.log('サーバー: 文字起こし完了:', transcription ? transcription.substring(0, 100) + '...' : '結果なし');
-    
-    if (!transcription || transcription.length === 0) {
-      throw new Error('文字起こし結果が空です');
+
+    // 認識されたテキストを連結
+    let transcription = '';
+    data.results.forEach((result: any) => {
+      if (result.alternatives && result.alternatives.length > 0) {
+        transcription += result.alternatives[0].transcript + ' ';
+      }
+    });
+
+    console.log('Speech API 認識結果:', transcription);
+
+    if (!transcription || transcription.trim().length === 0) {
+      console.error('Speech API: 空の認識結果');
+      throw new Error('認識結果が空です。別の音声を試してみてください。');
     }
-    
-    return transcription;
+
+    return transcription.trim();
   } catch (error) {
-    console.error('サーバー: Speech-to-Text APIでの音声文字起こし中にエラーが発生しました:', error);
-    // エラーの詳細情報を出力
+    console.error('Speech-to-Text API処理中にエラーが発生しました:', error);
+    
+    // エラーメッセージの詳細化
+    let errorMessage = '音声認識に失敗しました';
     if (error instanceof Error) {
+      errorMessage = `Speech API エラー: ${error.message}`;
       console.error('エラータイプ:', error.name);
-      console.error('エラーメッセージ:', error.message);
       console.error('エラースタック:', error.stack);
     }
-    throw error;
+    
+    throw new Error(errorMessage);
   }
 }
 

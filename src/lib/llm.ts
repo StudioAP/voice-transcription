@@ -269,20 +269,27 @@ async function blobToBase64(blob: Blob): Promise<string> {
     reader.onloadend = () => {
       try {
         if (typeof reader.result === 'string') {
+          // データURLからbase64部分を抽出
+          // 例: data:audio/webm;base64,XXXX から XXXX の部分を取得
           const base64 = reader.result.split(',')[1];
           if (!base64) {
+            console.error('Base64変換エラー: 不正なフォーマット', reader.result.substring(0, 50));
             reject(new Error('Base64変換結果が不正です'));
             return;
           }
+          console.log(`Base64変換成功: ${base64.length}文字, プレビュー: ${base64.substring(0, 20)}...`);
           resolve(base64);
         } else {
+          console.error('FileReader結果エラー: 文字列ではありません', typeof reader.result);
           reject(new Error('FileReader結果が文字列ではありません'));
         }
       } catch (e) {
+        console.error('Base64変換処理エラー詳細:', e);
         reject(new Error('Base64変換処理中にエラーが発生しました: ' + e));
       }
     };
     reader.onerror = (e) => {
+      console.error('FileReader読み込みエラー詳細:', e);
       reject(new Error('FileReader読み込みエラー: ' + e));
     };
     reader.readAsDataURL(blob);
