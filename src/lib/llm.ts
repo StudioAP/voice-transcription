@@ -1,8 +1,44 @@
 import { generateText, getGeminiModel, transcribeAudioWithGemini } from './gemini-api';
-import { transcribeAudioWithSpeechAPI } from './speech-to-text';
+// サーバーサイドの関数はインポートしない
 
 // 文字起こしのAPI選択用フラグ
 const USE_SPEECH_TO_TEXT_API = true; // trueならSpeech-to-Text API、falseならGemini API
+
+/**
+ * Speech-to-Text APIを使用して音声を文字起こしする関数（クライアント側）
+ * サーバーサイドAPIを呼び出します
+ * 
+ * @param audioData - Base64エンコードされた音声データ
+ * @param mimeType - 音声データのMIMEタイプ
+ * @returns 文字起こしされたテキスト
+ */
+async function callTranscribeApi(audioData: string, mimeType: string): Promise<string> {
+  try {
+    console.log('Speech-to-Text API呼び出し開始:', { mimeType, dataLength: audioData.length });
+    
+    const response = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        audioData,
+        mimeType,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API呼び出しエラー: ${errorData.error || response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.transcription;
+  } catch (error) {
+    console.error('Speech-to-Text API呼び出し中にエラーが発生しました:', error);
+    throw error;
+  }
+}
 
 /**
  * 音声の文字起こしを行う関数
@@ -58,8 +94,8 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
         const supportedSpeechMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/flac'];
         console.log(`音声フォーマット: ${mimeType}, Speech-to-Text APIサポート状況: ${supportedSpeechMimeTypes.includes(mimeType)}`);
         
-        // Speech-to-Text APIを使用して文字起こしを実行
-        transcription = await transcribeAudioWithSpeechAPI(base64Audio, mimeType);
+        // サーバーサイドAPIを呼び出して音声認識を実行
+        transcription = await callTranscribeApi(base64Audio, mimeType);
       } else {
         // Gemini APIで対応している形式かチェック
         const supportedGeminiMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
