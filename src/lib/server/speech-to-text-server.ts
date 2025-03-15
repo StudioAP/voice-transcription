@@ -3,7 +3,7 @@ import speech from '@google-cloud/speech';
 // 環境変数のデバッグ出力
 console.log('Speech-to-Text サーバー環境変数情報:', {
   NODE_ENV: process.env.NODE_ENV,
-  GOOGLE_APPLICATION_CREDENTIALS_EXISTS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS
+  GOOGLE_CREDENTIALS_EXISTS: !!process.env.GOOGLE_CREDENTIALS_JSON
 });
 
 /**
@@ -18,8 +18,15 @@ export async function transcribeAudioWithSpeechAPI(audioData: string, mimeType: 
   try {
     console.log('サーバー: Speech-to-Text API 音声認識開始:', { mimeType, dataLength: audioData.length });
     
-    // Speech-to-Text クライアントの作成
-    const client = new speech.SpeechClient();
+    // 環境変数からJSONの認証情報を取得
+    const credentials = process.env.GOOGLE_CREDENTIALS_JSON ? 
+      JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON) : 
+      undefined;
+    
+    // Speech-to-Text クライアントの作成（環境変数から認証情報を使用）
+    const client = new speech.SpeechClient({
+      credentials: credentials
+    });
     
     // Base64データをバイナリデータに変換
     const audioBytes = Buffer.from(audioData, 'base64');
