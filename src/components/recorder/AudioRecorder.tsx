@@ -31,7 +31,7 @@ export default function AudioRecorder({
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const streamRef = useRef<MediaStream | null>(null) // マイク入力ストリームを保持
   
-  // コンポーネントマウント時に機能サポートとマイク権限を確認
+  // コンポーネントマウント時に機能サポートのみを確認（マイク権限は録音時に取得）
   useEffect(() => {
     const checkMediaSupport = async () => {
       try {
@@ -48,30 +48,9 @@ export default function AudioRecorder({
           return false;
         }
         
-        // 最初のマウント時にマイク権限をリクエスト
-        try {
-          console.log('マイク入力の権限を事前に取得します...');
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-              channelCount: 1,
-              sampleRate: 16000
-            } 
-          });
-          
-          // ストリームを保存して再利用できるようにする
-          streamRef.current = stream;
-          console.log('マイク入力の権限を取得しました。連続的な録音が可能です。');
-          setHasPermission(true);
-          return true;
-        } catch (err) {
-          console.error('マイク権限の取得に失敗しました:', err);
-          setError('マイクへのアクセス権限がありません。ブラウザの権限設定を確認してください。');
-          setHasPermission(false);
-          return false;
-        }
+        // 初期段階では権限チェックだけにする（実際のストリーム取得は録音開始時）
+        setHasPermission(true);
+        return true;
       } catch (err) {
         console.error('メディアサポートチェック中にエラーが発生しました:', err);
         setError('音声録音機能のチェック中にエラーが発生しました。');
@@ -123,33 +102,31 @@ export default function AudioRecorder({
       setIsProcessing(true);
       setError(null);
       
-      // すでにマイク権限がある場合は、既存のストリームを使用
-      let stream: MediaStream;
-      
+      // 既存のストリームがあれば解放して新規取得（OSのマイクインジケーターを確実に表示するため）
       if (streamRef.current) {
-        // 既存のストリームを再利用
-        stream = streamRef.current;
-        console.log('既存のマイクストリームを使用します');
-      } else {
-        // 新規にマイク入力を取得
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('お使いのブラウザは音声録音をサポートしていません。');
-        }
-        
-        console.log('マイク入力の取得を開始します...');
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 16000
-          } 
-        });
-        console.log('マイク入力の取得に成功しました');
-        streamRef.current = stream;
-        setHasPermission(true);
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
+      
+      // 新規にマイク入力を取得
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('お使いのブラウザは音声録音をサポートしていません。');
+      }
+      
+      console.log('マイク入力の取得を開始します...');
+      // マイク入力取得（OSのマイクインジケーターが表示される）
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 16000
+        } 
+      });
+      console.log('マイク入力の取得に成功しました');
+      streamRef.current = stream;
+      setHasPermission(true);
       
       // サポートされる音声形式を確認
       const mimeTypes = [
@@ -226,7 +203,12 @@ export default function AudioRecorder({
           // 処理フラグをリセット
           setIsProcessing(false);
           setRecordingTime(0);
-          // ストリームは終了せず保持（連続録音のため）
+          
+          // ストリームを停止して解放（OSのマイクインジケーターを消すため）
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
         }
       };
       
@@ -256,12 +238,20 @@ export default function AudioRecorder({
         console.log('録音を停止します');
         mediaRecorderRef.current.stop();
         setIsRecording(false);
+        
+        // ここでストリームを停止しない（onstopイベントで行う）
       }
     } catch (err) {
       console.error('録音の停止中にエラーが発生しました:', err);
       setError(err instanceof Error ? err.message : '録音の停止中にエラーが発生しました');
       setIsProcessing(false);
       setIsRecording(false);
+      
+      // エラー時はすぐにストリームを停止
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
     }
   };
   
