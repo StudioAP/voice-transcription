@@ -36,8 +36,22 @@ const safetySettings = [
   },
 ];
 
-// Gemini APIのインスタンスを作成
-export const genAI = new GoogleGenerativeAI(API_KEY);
+// 遅延初期化のための変数
+let genAIInstance: GoogleGenerativeAI | null = null;
+
+// Gemini APIのインスタンスを遅延して取得するgetter
+export const genAI = (): GoogleGenerativeAI => {
+  if (!genAIInstance && API_KEY) {
+    console.log('Gemini API インスタンスを初期化します');
+    genAIInstance = new GoogleGenerativeAI(API_KEY);
+  }
+  
+  if (!genAIInstance) {
+    throw new Error('Gemini APIキーが設定されていないため、APIインスタンスを初期化できません。');
+  }
+  
+  return genAIInstance;
+};
 
 // モデルの取得
 export const getGeminiModel = (temperature: number = 0.1) => {
@@ -48,7 +62,7 @@ export const getGeminiModel = (temperature: number = 0.1) => {
   
   console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY, temperature });
   
-  return genAI.getGenerativeModel({ 
+  return genAI().getGenerativeModel({ 
     model: MODEL_NAME,
     safetySettings,
     generationConfig: {

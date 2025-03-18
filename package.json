@@ -10,7 +10,6 @@
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
-    "@google-cloud/speech": "^6.7.1",
     "@google/generative-ai": "^0.24.0",
     "clsx": "^2.1.1",
     "critters": "^0.0.20",
@@ -23,6 +22,7 @@
     "tailwind-merge": "^3.0.2"
   },
   "devDependencies": {
+    "@google-cloud/speech": "^6.7.1",
     "@next/bundle-analyzer": "^14.1.0",
     "@types/node": "^20.17.24",
     "@types/react": "^18.3.18",

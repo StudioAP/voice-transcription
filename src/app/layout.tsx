@@ -5,8 +5,8 @@ import "./globals.css";
 // フォントの最適化: 必要最小限のウェイトのみをロード
 const inter = Inter({ 
   subsets: ["latin"],
-  display: 'swap',
-  preload: true,
+  display: 'optional', // 'swap'から'optional'に変更してFOIT/FOUCを最小化
+  preload: false, // 初期ロードを高速化するためpreloadを無効化
   weight: ['400', '600'], // 必要なウェイトのみを指定
   variable: '--font-inter',
   fallback: ['system-ui', 'arial'], // フォールバックフォントを指定
@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   other: {
     'darkreader-lock': 'true', // DarkReaderの自動適用を防止
   },
-  themeColor: '#ffffff',
 };
 
 // ビューポート設定の最適化
@@ -30,7 +29,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#ffffff',
+  themeColor: '#ffffff', // themeColorをviewportに移動
 };
 
 export default function RootLayout({

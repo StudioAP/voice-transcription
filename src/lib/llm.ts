@@ -1,12 +1,13 @@
 import { generateText, getGeminiModel, transcribeAudioWithGemini } from './gemini-api';
-import { transcribeAudioWithSpeechAPI } from './speech-to-text';
+// Speech-to-Text APIを必要なときだけ動的にインポート
+// import { transcribeAudioWithSpeechAPI } from './speech-to-text';
 
-// 文字起こしのAPI選択用フラグ
-const USE_SPEECH_TO_TEXT_API = true; // trueならSpeech-to-Text API、falseならGemini API
+// 文字起こしのAPI選択用フラグ - Gemini APIのみを使用するように変更
+const USE_SPEECH_TO_TEXT_API = false; // falseでGemini APIを使用する
 
 /**
  * 音声の文字起こしを行う関数
- * Google Cloud Speech-to-Text APIまたはGemini APIを使用して音声認識を行います
+ * Gemini APIを使用して音声認識を行います
  * 
  * @param audioBlob - 音声データ
  * @returns 文字起こし結果
@@ -15,7 +16,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {
     console.log('文字起こし処理開始 - 環境情報:', {
       env: process.env.NODE_ENV,
-      api: USE_SPEECH_TO_TEXT_API ? 'Speech-to-Text API' : 'Gemini API',
+      api: 'Gemini API', // 常にGemini APIを使用
       isClient: typeof window !== 'undefined',
       isServer: typeof window === 'undefined'
     });
@@ -53,21 +54,12 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
       const mimeType = audioBlob.type;
       let transcription = '';
       
-      if (USE_SPEECH_TO_TEXT_API) {
-        // Speech-to-Text APIで対応している形式かチェック
-        const supportedSpeechMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/flac'];
-        console.log(`音声フォーマット: ${mimeType}, Speech-to-Text APIサポート状況: ${supportedSpeechMimeTypes.includes(mimeType)}`);
-        
-        // Speech-to-Text APIを使用して文字起こしを実行
-        transcription = await transcribeAudioWithSpeechAPI(base64Audio, mimeType);
-      } else {
-        // Gemini APIで対応している形式かチェック
-        const supportedGeminiMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
-        console.log(`音声フォーマット: ${mimeType}, Gemini APIサポート状況: ${supportedGeminiMimeTypes.includes(mimeType)}`);
-        
-        // Gemini APIを使用して文字起こしを実行
-        transcription = await transcribeAudioWithGemini(base64Audio, mimeType);
-      }
+      // Gemini APIで対応している形式かチェック
+      const supportedGeminiMimeTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
+      console.log(`音声フォーマット: ${mimeType}, Gemini APIサポート状況: ${supportedGeminiMimeTypes.includes(mimeType)}`);
+      
+      // Gemini APIを使用して文字起こしを実行
+      transcription = await transcribeAudioWithGemini(base64Audio, mimeType);
       
       console.log('文字起こし完了:', transcription ? transcription.substring(0, 100) + '...' : '結果なし');
       

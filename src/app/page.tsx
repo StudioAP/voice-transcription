@@ -4,15 +4,44 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { InfoIcon, BrainCircuit, AlertCircle } from 'lucide-react'
 import { transcribeAudio, correctTranscription } from '@/lib/llm'
 
-// コンポーネントの動的インポート
-const AudioRecorder = lazy(() => import('@/components/recorder/AudioRecorder'))
-const TranscriptionResult = lazy(() => import('@/components/ui/TranscriptionResult'))
-const AudioPlayer = lazy(() => import('@/components/ui/AudioPlayer'))
+// コンポーネントの動的インポート - 必要なタイミングで遅延ロード
+const AudioRecorder = lazy(() => 
+  import('@/components/recorder/AudioRecorder')
+    .then(mod => ({
+      default: mod.default
+    }))
+    .catch(err => {
+      console.error('AudioRecorderのロードに失敗しました:', err);
+      return { default: () => <div>録音機能を読み込めませんでした</div> };
+    })
+);
 
-// ローディングフォールバックコンポーネント
+const TranscriptionResult = lazy(() => 
+  import('@/components/ui/TranscriptionResult')
+    .then(mod => ({
+      default: mod.default
+    }))
+    .catch(err => {
+      console.error('TranscriptionResultのロードに失敗しました:', err);
+      return { default: () => <div>結果表示コンポーネントを読み込めませんでした</div> };
+    })
+);
+
+const AudioPlayer = lazy(() => 
+  import('@/components/ui/AudioPlayer')
+    .then(mod => ({
+      default: mod.default
+    }))
+    .catch(err => {
+      console.error('AudioPlayerのロードに失敗しました:', err);
+      return { default: () => <div>音声プレーヤーを読み込めませんでした</div> };
+    })
+);
+
+// ローディングフォールバックコンポーネント - より軽量化
 const LoadingFallback = () => (
-  <div className="flex justify-center items-center p-4">
-    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+  <div className="flex justify-center items-center p-2">
+    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
   </div>
 )
 
@@ -28,9 +57,20 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showGuide, setShowGuide] = useState<boolean>(true)
+  const [isRecorderVisible, setIsRecorderVisible] = useState<boolean>(false)
   
   // APIキーのチェックを最適化（本番環境では最小限の処理に）
   const hasApiKey = !!process.env.NEXT_PUBLIC_GEMINI_API_KEY
+  
+  // 録音ボタンを表示するタイミングを遅延
+  useEffect(() => {
+    // アプリケーションがロードされてから500ms後に録音ボタンを表示
+    const timer = setTimeout(() => {
+      setIsRecorderVisible(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   /**
    * 録音完了時のハンドラー
@@ -158,13 +198,15 @@ export default function Home() {
           )}
           
           {/* 文字起こしと処理結果 - 動的ロード */}
-          <Suspense fallback={<LoadingFallback />}>
-            <TranscriptionResult
-              transcription={transcription}
-              correctedText={correctedText}
-              isLoading={isTranscribing || isProcessing}
-            />
-          </Suspense>
+          {(transcription || correctedText) && (
+            <Suspense fallback={<LoadingFallback />}>
+              <TranscriptionResult
+                transcription={transcription}
+                correctedText={correctedText}
+                isLoading={isTranscribing || isProcessing}
+              />
+            </Suspense>
+          )}
         </div>
       </div>
       
@@ -181,12 +223,18 @@ export default function Home() {
             )}
           </div>
           
-          <Suspense fallback={<LoadingFallback />}>
-            <AudioRecorder 
-              onRecordingComplete={handleRecordingComplete} 
-              className="px-6"
-            />
-          </Suspense>
+          {isRecorderVisible ? (
+            <Suspense fallback={<LoadingFallback />}>
+              <AudioRecorder 
+                onRecordingComplete={handleRecordingComplete} 
+                className="px-6"
+              />
+            </Suspense>
+          ) : (
+            <div className="h-10 flex items-center justify-center">
+              <div className="animate-pulse rounded-full h-8 w-8 bg-gray-200"></div>
+            </div>
+          )}
           
           <div className="flex-1"></div>
         </div>

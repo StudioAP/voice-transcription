@@ -21,13 +21,25 @@ const nextConfig = {
     pagesBufferLength: 5,
   },
   
-  // 実験的機能の制御
+  // 実験的機能の制御 - 起動速度向上のために最適化
   experimental: {
     optimizeCss: {
       enabled: true,
       cssModules: true,
     },
+    serverActions: {
+      bodySizeLimit: '2mb', // 音声データのアップロード制限緩和
+    },
+    // アプリケーション初期化時間短縮のための最適化
+    webVitalsAttribution: ['CLS', 'LCP'],
+    optimizePackageImports: ['lucide-react', 'react-icons'],
+    // 互換性のある高速化機能のみ有効化
+    scrollRestoration: true,
+    adjustFontFallbacks: true,
   },
+  
+  // 初期ロード時のパフォーマンス向上
+  staticPageGenerationTimeout: 120,
   
   // ビルド設定
   swcMinify: true, // SWCミニファイを使用
@@ -71,6 +83,9 @@ const nextConfig = {
           },
         },
       }
+      
+      // スタートアップ時間を短縮するために不要なモジュールをtree-shakingで除外
+      config.optimization.usedExports = true
     }
     return config
   },
