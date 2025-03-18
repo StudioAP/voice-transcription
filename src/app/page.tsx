@@ -60,7 +60,8 @@ export default function Home() {
   const [isRecorderVisible, setIsRecorderVisible] = useState<boolean>(false)
   
   // APIキーのチェックを最適化（本番環境では最小限の処理に）
-  const hasApiKey = !!process.env.NEXT_PUBLIC_GEMINI_API_KEY
+  const hasApiKey = typeof process.env.NEXT_PUBLIC_GEMINI_API_KEY === 'string' && 
+                    process.env.NEXT_PUBLIC_GEMINI_API_KEY.length > 0
   
   // 録音ボタンを表示するタイミングを遅延
   useEffect(() => {
@@ -145,7 +146,9 @@ export default function Home() {
                 <AlertCircle className="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
                   {!hasApiKey ? (
-                    <span className="text-red-700">APIキーが見つかりません。環境変数を確認してください。</span>
+                    <span className="text-red-700">
+                      APIキーが設定されていません。アプリを動作させるにはRender環境変数に<code>NEXT_PUBLIC_GEMINI_API_KEY</code>を設定してください。
+                    </span>
                   ) : (
                     <span className="text-amber-700">{errorMessage}</span>
                   )}

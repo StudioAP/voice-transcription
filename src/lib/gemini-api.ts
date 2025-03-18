@@ -11,7 +11,7 @@ console.log('環境変数情報:', {
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const MODEL_NAME = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash-lite';
 
-// APIキーが設定されていない場合はエラーメッセージを表示
+// APIキーが設定されていない場合はエラーメッセージを表示（サーバークラッシュを防ぐためにthrowしない）
 if (!API_KEY) {
   console.error('Gemini APIキーが設定されていません。Render環境変数またはプロジェクトの.env.localファイルを確認してください。');
 }
@@ -42,12 +42,20 @@ let genAIInstance: GoogleGenerativeAI | null = null;
 // Gemini APIのインスタンスを遅延して取得するgetter
 export const genAI = (): GoogleGenerativeAI => {
   if (!genAIInstance && API_KEY) {
-    console.log('Gemini API インスタンスを初期化します');
-    genAIInstance = new GoogleGenerativeAI(API_KEY);
+    try {
+      console.log('Gemini API インスタンスを初期化します');
+      genAIInstance = new GoogleGenerativeAI(API_KEY);
+    } catch (error) {
+      console.error('Gemini APIインスタンスの初期化に失敗しました:', error);
+      // インスタンス初期化に失敗してもサーバーが落ちないようにダミーインスタンスを返す
+      return new GoogleGenerativeAI('dummy-key-for-error-handling');
+    }
   }
   
   if (!genAIInstance) {
-    throw new Error('Gemini APIキーが設定されていないため、APIインスタンスを初期化できません。');
+    console.error('APIキーが設定されていないため、ダミーインスタンスを返します');
+    // APIキーが設定されていない場合もサーバーが落ちないようにダミーインスタンスを返す
+    return new GoogleGenerativeAI('dummy-key-for-error-handling');
   }
   
   return genAIInstance;
@@ -55,23 +63,29 @@ export const genAI = (): GoogleGenerativeAI => {
 
 // モデルの取得
 export const getGeminiModel = (temperature: number = 0.1) => {
-  // APIキーのデバッグチェック
-  if (!API_KEY) {
-    console.error('API_KEYが設定されていません。有効なAPIキーが必要です。');
-  }
-  
-  console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY, temperature });
-  
-  return genAI().getGenerativeModel({ 
-    model: MODEL_NAME,
-    safetySettings,
-    generationConfig: {
-      temperature: temperature,
-      topK: 32,
-      topP: 0.95,
-      maxOutputTokens: 8192,
+  try {
+    // APIキーのデバッグチェック
+    if (!API_KEY) {
+      console.error('API_KEYが設定されていません。有効なAPIキーが必要です。');
+      throw new Error('APIキーが設定されていません');
     }
-  });
+    
+    console.log('Geminiモデル初期化:', { model: MODEL_NAME, apiKeyExists: !!API_KEY, temperature });
+    
+    return genAI().getGenerativeModel({ 
+      model: MODEL_NAME,
+      safetySettings,
+      generationConfig: {
+        temperature: temperature,
+        topK: 32,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      }
+    });
+  } catch (error) {
+    console.error('Geminiモデルの初期化に失敗しました:', error);
+    throw error; // 呼び出し元で適切に処理できるようにエラーを伝播
+  }
 };
 
 /**
